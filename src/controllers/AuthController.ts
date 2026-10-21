@@ -1,6 +1,6 @@
 import { type RequestHandler } from 'express';
-import { LoginSchema, PasswordChangeSchema } from '../schemas/UserSchema.js';
-import { UserRepository } from '../models/lowdb/UserRepository.js';
+import { LoginSchema, ChangePasswordSchema } from '../schemas/UserSchema.js';
+import { UserRepository } from '../models/UserRepository.js';
 import bcrypt from 'bcrypt';
 import { TokenManager } from '../utils/TokenManager.js';
 
@@ -119,7 +119,7 @@ export class AuthController {
     }
 
     public static changePassword: RequestHandler = async (req, res) => {
-        const result = PasswordChangeSchema.safeParse(req.body ?? {});
+        const result = ChangePasswordSchema.safeParse(req.body ?? {});
         
         if (!result.success) {
             return res.status(400).json({ 

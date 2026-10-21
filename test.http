@@ -3,12 +3,11 @@ POST http://192.168.1.10/api/auth/login
 Content-Type: application/json
 
 {
-    "email": "test@test.local",
-    "password": "newpassword"
+    "email": "test2@test.local",
+    "password": "newpassword123"
 }
 
 ###
-# CORRECCIÓN: Se elimina $.Data si el token viene en la raíz del JSON
 @access_token = {{loginRequest.response.body.$.accessToken}}
 
 ###
@@ -31,4 +30,17 @@ Content-Type: application/json
 {
     "current": "newpassword1",
     "password": "newpassword"
+}
+
+###
+GET http://192.168.1.10/api/admin/users
+
+###
+POST http://192.168.1.10/api/admin/users
+Content-Type: application/json
+
+{
+    "email": "test2@test.local",
+    "name": "Test User 2",
+    "password": "newpassword123"
 }

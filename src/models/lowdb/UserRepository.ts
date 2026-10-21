@@ -1,5 +1,7 @@
 import { JSONFilePreset } from "lowdb/node";
 import type { User } from "../../schemas/UserSchema.js";
+import type { ListUsersOptions, UserListItem, UserRepositoryContract } from "../../types/UserRepository.types.js";
+import { ListUtils, type PaginationResult } from "../../utils/ListUtils.js";
 
 type Data = {
     users: User[];
@@ -7,22 +9,22 @@ type Data = {
 
 const db = await JSONFilePreset<Data>('db.json', { users: [] });
 
-export class UserRepository {
-    static async findByEmail(email: string): Promise<User | undefined> {
+export class LowdbUserRepository implements UserRepositoryContract {
+    async findByEmail(email: string): Promise<User | undefined> {
         return db.data.users.find(user => user.email === email);
     }
 
-    static async findById(id: string): Promise<User | undefined> {
+    async findById(id: string): Promise<User | undefined> {
         return db.data.users.find(user => user.id === id);
     }
 
-    static async create(user: User): Promise<User> {
+    async create(user: User): Promise<User> {
         db.data.users.push(user);
         await db.write();
         return user;
     }
 
-    static async updateRefreshToken(id: string, refreshToken: string): Promise<void> {
+    async updateRefreshToken(id: string, refreshToken: string): Promise<void> {
         const user = db.data.users.find(user => user.id === id);
         if (user) {
             user.refreshToken = refreshToken;
@@ -30,7 +32,7 @@ export class UserRepository {
         }
     }
 
-    static async updatePassword(id: string, newPassword: string): Promise<void> {
+    async updatePassword(id: string, newPassword: string): Promise<void> {
         const user = db.data.users.find(user => user.id === id);
         if (user) {
             user.password = newPassword;
@@ -38,5 +40,22 @@ export class UserRepository {
             return;
         }
         return Promise.reject(new Error('Usuario no encontrado'));
+    }
+
+    async listUsers(options: ListUsersOptions = {}): Promise<PaginationResult<UserListItem>> {
+        const params = ListUtils.getPaginationParams(options.page, options.limit);
+        const query = typeof options.q === "string" ? options.q.trim().toLocaleLowerCase() : "";
+        const result = ListUtils.paginateAndFilter(
+            db.data.users,
+            params,
+            (user) => !query
+                || user.name.toLocaleLowerCase().includes(query)
+                || user.email.toLocaleLowerCase().includes(query)
+        );
+
+        return {
+            ...result,
+            data: result.data.map(({ password, refreshToken, ...user }) => user)
+        };
     }
 }

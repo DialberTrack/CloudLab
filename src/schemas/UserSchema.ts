@@ -15,11 +15,15 @@ export const LoginSchema = UserSchema.pick({
     email: true, password: true
 });
 
-export const PasswordChangeSchema = z.object({
+export const ChangePasswordSchema = z.object({
     current: z.string({ error: "La contraseña actual debe ser texto." }).min(1, "Se requiere la contraseña actual."),
     password: z.string({ error: "La nueva contraseña debe ser texto." }).min(8, "Se requiere la nueva contraseña de al menos 8 caracteres.")
 });
 
+export const CreateUserSchema = UserSchema.omit({ 
+    id: true, createdAt: true, refreshToken: true, active: true
+});
+
 export type User = z.infer<typeof UserSchema>;
 export type Login = z.infer<typeof LoginSchema>;
-export type PasswordChange = z.infer<typeof PasswordChangeSchema>;
+export type PasswordChange = z.infer<typeof ChangePasswordSchema>;
