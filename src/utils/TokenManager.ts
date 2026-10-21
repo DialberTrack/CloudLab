@@ -2,9 +2,9 @@ import { env } from "../config/env.js";
 import type { User } from "../schemas/UserSchema.js";
 import jwt, { type JwtPayload } from "jsonwebtoken";
 
-interface UserPayLoad extends JwtPayload {
+export interface AccessTokenPayload extends JwtPayload {
     id: string;
-    role: string;
+    role: User["role"];
 }
 
 export class TokenManager {
@@ -12,7 +12,7 @@ export class TokenManager {
         return jwt.sign(
             { id: user.id, role: user.role },
             env.JWT_SECRET,
-            { expiresIn: env.JWT_EXPIRES_IN as any }
+            { expiresIn: env.JWT_EXPIRES_IN }
         );
     }
 
@@ -20,22 +20,41 @@ export class TokenManager {
         return jwt.sign(
             { id: user.id },
             env.JWT_REFRESH_SECRET,
-            { expiresIn: env.JWT_REFRESH_EXPIRES_IN as any }
+            { expiresIn: env.JWT_REFRESH_EXPIRES_IN }
         );
     }
 
-    public static verifyAccessToken(token: string): UserPayLoad | null {
+    public static verifyAccessToken(token: string): AccessTokenPayload | null {
         try {
-            return jwt.verify(token, env.JWT_SECRET) as UserPayLoad;
-        } catch (error) {
+            const payload = jwt.verify(token, env.JWT_SECRET);
+            if (
+                typeof payload !== "object"
+                || typeof payload.id !== "string"
+                || (payload.role !== "admin" && payload.role !== "user")
+            ) {
+                return null;
+            }
+
+            return {
+                id: payload.id,
+                role: payload.role,
+                ...(typeof payload.iat === "number" ? { iat: payload.iat } : {}),
+                ...(typeof payload.exp === "number" ? { exp: payload.exp } : {})
+            };
+        } catch {
             return null;
         }
     }
 
     public static verifyRefreshToken(token: string): { id: string } | null {
         try {
-            return jwt.verify(token, env.JWT_REFRESH_SECRET) as { id: string };
-        } catch (error) {
+            const payload = jwt.verify(token, env.JWT_REFRESH_SECRET);
+            if (typeof payload !== "object" || typeof payload.id !== "string") {
+                return null;
+            }
+
+            return { id: payload.id };
+        } catch {
             return null;
         }
     }

@@ -35,7 +35,7 @@ export class ListUtils {
             this.parsePositiveInteger(limit, this.DEFAULT_LIMIT)
         );
         const requestedPage = this.parsePositiveInteger(page, this.DEFAULT_PAGE);
-        const maxPage = Math.floor(Number.MAX_SAFE_INTEGER / validLimit) + 1;
+        const maxPage = Math.floor((Number.MAX_SAFE_INTEGER - validLimit) / validLimit) + 1;
         const validPage = Math.min(requestedPage, maxPage);
         const offset = (validPage - 1) * validLimit;
 

@@ -1,6 +1,6 @@
 import type { RequestHandler } from "express";
 import { UserRepository } from "../models/UserRepository.js";
-import { CreateUserSchema } from "../schemas/UserSchema.js";
+import { CreateUserSchema, EditUserSchema } from "../schemas/UserSchema.js";
 import bcrypt from "bcrypt";
 
 export class AdminController {
@@ -23,7 +23,7 @@ export class AdminController {
     }
 
     public static createUser: RequestHandler = async (req, res) => {
-        const result = await CreateUserSchema.safeParse(req.body ?? {});
+        const result = CreateUserSchema.safeParse(req.body ?? {});
 
         if (!result.success) {
             return res.status(400).json({
@@ -33,42 +33,70 @@ export class AdminController {
 
         const { name, email, password, role } = result.data;
 
-        try {
-            const existingUser = await UserRepository.findByEmail(email);
-            if (existingUser) {
-                return res.status(409).json({ error: 'El correo electrónico ya está en uso' });
-            }
-
-            const hashedPassword = await bcrypt.hash(password, 12);
-
-            const newUser = await UserRepository.create({
-                id: crypto.randomUUID(),
-                name,
-                email,
-                password: hashedPassword,
-                role,
-                active: true,
-                createdAt: new Date()
-            });
-
-            res.status(201).json({
-                message: 'Usuario creado exitosamente',
-                user: {
-                    id: newUser.id,
-                    name: newUser.name,
-                    email: newUser.email,
-                    role: newUser.role
-                }
-            });
-        } catch (error) {
-            console.error('Error al crear usuario:', error);
-            res.status(500).json({ error: 'Error interno del servidor' });
+        const existingUser = await UserRepository.findByEmail(email);
+        if (existingUser) {
+            return res.status(409).json({ error: "El correo electrónico ya está en uso" });
         }
+
+        const hashedPassword = await bcrypt.hash(password, 12);
+
+        const newUser = await UserRepository.create({
+            id: crypto.randomUUID(),
+            name,
+            email,
+            password: hashedPassword,
+            role,
+            active: true,
+            createdAt: new Date().toISOString()
+        });
+
+        res.status(201).json({
+            message: "Usuario creado exitosamente",
+            user: {
+                id: newUser.id,
+                name: newUser.name,
+                email: newUser.email,
+                role: newUser.role
+            }
+        });
     }
 
     public static editUser: RequestHandler = async (req, res) => {
-        // Lógica para editar un usuario
-        res.json({ message: `Usuario ${req.params.id} editado` });
+        const userId = req.params.id as string;
+        const result = EditUserSchema.safeParse(req.body ?? {});
+
+        if (!result.success) {
+            return res.status(400).json({
+                errors: result.error.issues
+            });
+        }
+
+        const updates = result.data;
+        const { role, active } = updates;
+        const currentUser = req.user;
+        if (!currentUser) {
+            return res.status(401).json({ error: "Se requiere autenticación." });
+        }
+
+        const self = userId === currentUser.id;
+        if (self && ((role && role !== "admin") || active === false)) {
+            return res.status(403).json({ error: 'No puedes cambiar tu propio rol o desactivar tu cuenta. Contacta a un administrador superior.' });
+        }
+
+        const existingUser = await UserRepository.findById(userId);
+        if (!existingUser) {
+            return res.status(404).json({ error: "Usuario no encontrado" });
+        }
+
+        if (updates.email && updates.email !== existingUser.email) {
+            const userWithEmail = await UserRepository.findByEmail(updates.email);
+            if (userWithEmail && userWithEmail.id !== userId) {
+                return res.status(409).json({ error: "El correo electrónico ya está en uso" });
+            }
+        }
+
+        await UserRepository.updateUser(userId, updates);
+        res.json({ message: "Usuario actualizado exitosamente" });
     }
 
     public static deleteUser: RequestHandler = async (req, res) => {

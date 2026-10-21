@@ -3,8 +3,8 @@ POST http://192.168.1.10/api/auth/login
 Content-Type: application/json
 
 {
-    "email": "test2@test.local",
-    "password": "newpassword123"
+    "email": "test@test.local",
+    "password": "newpassword"
 }
 
 ###
@@ -34,13 +34,25 @@ Content-Type: application/json
 
 ###
 GET http://192.168.1.10/api/admin/users
+Authorization: Bearer {{access_token}}
 
 ###
 POST http://192.168.1.10/api/admin/users
 Content-Type: application/json
 
 {
-    "email": "test2@test.local",
+    "email": "test5@test.local",
     "name": "Test User 2",
     "password": "newpassword123"
+    //"password": "newpassword123"
+}
+
+###
+PATCH http://192.168.1.10/api/admin/users/d79aef57-5082-4d12-8365-036d2bcd9d11
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+    "name": "Testeo de Editar Rol",
+    "role": "admin"
 }

@@ -1,4 +1,4 @@
-import type { User } from "../schemas/UserSchema.js";
+import type { EditUser, User } from "../schemas/UserSchema.js";
 import type { PaginationResult } from "../utils/ListUtils.js";
 
 export interface ListUsersOptions {
@@ -16,4 +16,5 @@ export interface UserRepositoryContract {
     updateRefreshToken(id: string, refreshToken: string): Promise<void>;
     updatePassword(id: string, newPassword: string): Promise<void>;
     listUsers(options?: ListUsersOptions): Promise<PaginationResult<UserListItem>>;
+    updateUser(id: string, updates: EditUser): Promise<void>;
 }

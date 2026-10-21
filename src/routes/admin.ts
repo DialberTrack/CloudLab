@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { AdminController } from "../controllers/AdminController.js";
+import { AuthMiddleware } from "../middlewares/auth.js";
 
 export const adminRoutes: Router = Router();
 
@@ -7,9 +8,10 @@ function example (req: Request, res: Response) {
     res.json({ url: req.url });
 }
 
+adminRoutes.use(AuthMiddleware.authenticate, AuthMiddleware.authorizeAdmin);
 adminRoutes.get('/users', AdminController.listUsers);
 adminRoutes.post('/users', AdminController.createUser);
-//adminRoutes.get('/users/:id', example) // PATCH Editar usuario
+adminRoutes.patch('/users/:id', AdminController.editUser); // PATCH Editar usuario
 //adminRoutes.get('/users/:id', example) // DELETE Elimiar usuario
 //adminRoutes.get('/users/:id/reset-password', example) // POST Reiniciar contraseña de usuario
 

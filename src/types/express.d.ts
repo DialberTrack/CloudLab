@@ -1,12 +1,9 @@
-import { JwtPayLoad } from 'jsonwebtoken';
+import type { AccessTokenPayload } from "../utils/TokenManager.js";
 
 declare global {
   namespace Express {
     interface Request {
-      user?: JwtPayLoad & {
-        id: string;
-        role: string;
-      };
+      user?: AccessTokenPayload;
     }
   }
 }
