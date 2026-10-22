@@ -61,3 +61,27 @@ Authorization: Bearer {{access_token}}
 ###
 DELETE http://192.168.1.10/api/admin/users/012db89b-0c0b-4720-b37f-be79f8b75ebb
 Authorization: Bearer {{access_token}}
+
+###
+GET http://192.168.1.10/api/container-images/
+Authorization: Bearer {{access_token}}
+
+###
+POST http://192.168.1.10/api/container-images/
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+    "id": "1",
+    "name": "debian",
+    "imageReference": "debian:latest"
+}
+
+###
+PATCH http://192.168.1.10/api/container-images/16697629-4254-4fc2-bcce-4c88f4ecde2f
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+    "iconUrl": "http://imagen.png"
+}

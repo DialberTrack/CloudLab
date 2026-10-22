@@ -1,9 +1,9 @@
-import type { AccessTokenPayload } from "../utils/TokenManager.js";
+import type { AccessTokenPayload } from '../utils/TokenManager.js';
 
 declare global {
-  namespace Express {
-    interface Request {
-      user?: AccessTokenPayload;
+    namespace Express {
+        interface Request {
+            user?: AccessTokenPayload;
+        }
     }
-  }
 }

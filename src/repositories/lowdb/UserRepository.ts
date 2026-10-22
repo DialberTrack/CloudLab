@@ -1,38 +1,30 @@
-import { JSONFilePreset } from "lowdb/node";
-import type { EditUser, User } from "../../schemas/UserSchema.js";
-import type { ListUsersOptions, UserListItem, UserRepositoryContract } from "../../types/UserRepository.types.js";
-import { ListUtils, type PaginationResult } from "../../utils/ListUtils.js";
-import { UserEmailAlreadyExistsError, UserNotFoundError } from "../UserRepositoryErrors.js";
-
-type Data = {
-    users: User[];
-}
-
-const db = await JSONFilePreset<Data>('db.json', { users: [] });
-let migratedCreatedAt = false;
-for (const user of db.data.users) {
-    if (!user.createdAt) {
-        user.createdAt = new Date().toISOString();
-        migratedCreatedAt = true;
-    }
-}
-if (migratedCreatedAt) {
-    await db.write();
-}
+import { db } from '../../config/database.js';
+import type { EditUser, User } from '../../schemas/UserSchema.js';
+import type { ListUsersOptions, UserListItem, UserRepositoryContract } from '../UserRepository.js';
+import { ListUtils, type PaginationResult } from '../../utils/ListUtils.js';
+import { UserEmailAlreadyExistsError, UserNotFoundError } from '../../errors/UserErrors.js';
 
 export class LowdbUserRepository implements UserRepositoryContract {
     async findByEmail(email: string): Promise<User | undefined> {
         const normalizedEmail = email.trim().toLowerCase();
-        return db.data.users.find(user => user.email.toLowerCase() === normalizedEmail);
+        return db.data.users.find((user) => user.email.toLowerCase() === normalizedEmail);
     }
 
     async findById(id: string): Promise<User | undefined> {
-        return db.data.users.find(user => user.id === id);
+        return db.data.users.find((user) => user.id === id);
+    }
+
+    async getById(id: string): Promise<User> {
+        const user = await this.findById(id);
+        if (!user) {
+            throw new UserNotFoundError();
+        }
+        return user;
     }
 
     async create(user: User): Promise<User> {
         const normalizedEmail = user.email.trim().toLowerCase();
-        if (db.data.users.some(existing => existing.email.toLowerCase() === normalizedEmail)) {
+        if (db.data.users.some((existing) => existing.email.toLowerCase() === normalizedEmail)) {
             throw new UserEmailAlreadyExistsError();
         }
 
@@ -43,7 +35,7 @@ export class LowdbUserRepository implements UserRepositoryContract {
     }
 
     async updateRefreshToken(id: string, refreshToken: string): Promise<void> {
-        const user = db.data.users.find(user => user.id === id);
+        const user = db.data.users.find((user) => user.id === id);
         if (user) {
             user.refreshToken = refreshToken;
             await db.write();
@@ -51,7 +43,7 @@ export class LowdbUserRepository implements UserRepositoryContract {
     }
 
     async updatePassword(id: string, newPassword: string): Promise<void> {
-        const user = db.data.users.find(user => user.id === id);
+        const user = db.data.users.find((user) => user.id === id);
         if (user) {
             user.password = newPassword;
             await db.write();
@@ -62,32 +54,30 @@ export class LowdbUserRepository implements UserRepositoryContract {
 
     async listUsers(options: ListUsersOptions = {}): Promise<PaginationResult<UserListItem>> {
         const params = ListUtils.getPaginationParams(options.page, options.limit);
-        const query = typeof options.q === "string" ? options.q.trim().toLocaleLowerCase() : "";
+        const query = typeof options.q === 'string' ? options.q.trim().toLocaleLowerCase() : '';
         const result = ListUtils.paginateAndFilter(db.data.users, params, (user) => {
-            return !query || user.name.toLocaleLowerCase().includes(query) || user.email.toLocaleLowerCase().includes(query)
+            return (
+                !query ||
+                user.name.toLocaleLowerCase().includes(query) ||
+                user.email.toLocaleLowerCase().includes(query)
+            );
         });
 
         return {
             ...result,
-            data: result.data.map(({ password, refreshToken, ...user }) => user)
+            data: result.data.map(({ password, refreshToken, ...user }) => user),
         };
     }
 
     async updateUser(id: string, updates: EditUser): Promise<void> {
-        const user = db.data.users.find(user => user.id === id);
+        const user = db.data.users.find((user) => user.id === id);
         if (!user) {
             throw new UserNotFoundError();
         }
 
         if (updates.email !== undefined) {
-            const normalizedEmail = updates.email.toLowerCase();
-            const duplicateEmail = db.data.users.some(candidate => 
-                candidate.id !== id && candidate.email.toLowerCase() === normalizedEmail
-            );
-            if (duplicateEmail) {
-                throw new UserEmailAlreadyExistsError();
-            }
-            user.email = normalizedEmail;
+            this.ensureUniqueReference(updates.email, id);
+            user.email = updates.email;
         }
         if (updates.name !== undefined) {
             user.name = updates.name;
@@ -98,23 +88,39 @@ export class LowdbUserRepository implements UserRepositoryContract {
         if (updates.active !== undefined) {
             user.active = updates.active;
             if (!updates.active) {
-                user.refreshToken = "";
+                user.refreshToken = '';
             }
         }
         await db.write();
     }
 
     async deleteUser(id: string): Promise<void> {
-        db.data.users = db.data.users.filter(user => user.id !== id);
+        const userIndex = db.data.users.findIndex((user) => user.id === id);
+        if (userIndex === -1) {
+            throw new UserNotFoundError();
+        }
+
+        db.data.users.splice(userIndex, 1);
         await db.write();
     }
 
     async resetUserPassword(id: string, newPassword: string): Promise<void> {
-        const user = db.data.users.find(user => user.id === id);
+        const user = db.data.users.find((user) => user.id === id);
         if (!user) {
             throw new UserNotFoundError();
         }
         user.password = newPassword;
         await db.write();
+    }
+
+    private ensureUniqueReference(reference: string, excludeId?: string): void {
+        const normalizedReference = reference.toLowerCase();
+        const duplicate = db.data.users.some(
+            (user) => user.id !== excludeId && user.email.toLowerCase() === normalizedReference
+        );
+
+        if (duplicate) {
+            throw new UserEmailAlreadyExistsError();
+        }
     }
 }

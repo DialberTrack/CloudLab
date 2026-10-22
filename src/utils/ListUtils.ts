@@ -45,16 +45,16 @@ export class ListUtils {
             offset,
             lowdb: {
                 start: offset,
-                end: offset + validLimit
+                end: offset + validLimit,
             },
             mongoose: {
                 skip: offset,
-                limit: validLimit
+                limit: validLimit,
             },
             mysql: {
                 limit: validLimit,
-                offset
-            }
+                offset,
+            },
         };
     }
 
@@ -83,16 +83,16 @@ export class ListUtils {
             total,
             page: params.page,
             limit: params.limit,
-            totalPages: Math.ceil(total / params.limit)
+            totalPages: Math.ceil(total / params.limit),
         };
     }
 
     private static parsePositiveInteger(value: unknown, fallback: number): number {
-        if (typeof value !== "number" && typeof value !== "string") {
+        if (typeof value !== 'number' && typeof value !== 'string') {
             return fallback;
         }
 
-        if (typeof value === "string" && value.trim() === "") {
+        if (typeof value === 'string' && value.trim() === '') {
             return fallback;
         }
 
