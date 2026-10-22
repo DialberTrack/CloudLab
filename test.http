@@ -1,10 +1,20 @@
+### Login as admin
 # @name loginRequest
 POST http://192.168.1.10/api/auth/login
 Content-Type: application/json
 
 {
     "email": "admin@cloudlab.local",
-    //"email": "test@test.local",
+    "password": "password123"
+}
+
+### Login as user
+# @name loginRequest
+POST http://192.168.1.10/api/auth/login
+Content-Type: application/json
+
+{
+    "email": "user@cloudlab.local",
     "password": "password123"
 }
 
@@ -43,10 +53,9 @@ Content-Type: application/json
 Authorization: Bearer {{access_token}}
 
 {
-    "email": "admin@cloudlab.local",
-    "name": "Admin",
+    "email": "user@cloudlab.local",
+    "name": "User",
     "password": "password123"
-    //"password": "newpassword123"
 }
 
 ###
@@ -72,10 +81,13 @@ Authorization: Bearer {{access_token}}
 Content-Type: application/json
 
 {
-    "id": "1",
-    "name": "debian",
-    "imageReference": "debian:latest"
+    "name": "Ubuntu",
+    "imageReference": "ubuntu-cloudlab:latest"
 }
+
+###
+DELETE http://192.168.1.10/api/container-images/16697629-4254-4fc2-bcce-4c88f4ecde2f
+Authorization: Bearer {{access_token}}
 
 ###
 PATCH http://192.168.1.10/api/container-images/16697629-4254-4fc2-bcce-4c88f4ecde2f
@@ -84,4 +96,17 @@ Content-Type: application/json
 
 {
     "iconUrl": "http://imagen.png"
+}
+
+###
+GET http://192.168.1.10/api/workspaces/
+Authorization: Bearer {{access_token}}
+
+###
+POST http://192.168.1.10/api/workspaces/
+Authorization: Bearer {{access_token}}
+Content-Type: application/json
+
+{
+    "catalog_id": "7205ac80-57f2-4a4a-ab32-3d9edcaaaa02"
 }

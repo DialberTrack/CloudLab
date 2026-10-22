@@ -5,4 +5,5 @@ export interface ContainerImageRepositoryContract {
     list(): Promise<ContainerImage[]>;
     getById(id: string): Promise<ContainerImage>;
     update(id: string, updates: EditContainerImage): Promise<void>;
+    delete(id: string): Promise<void>;
 }

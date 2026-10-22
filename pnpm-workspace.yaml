@@ -1,3 +1,6 @@
 allowBuilds:
   bcrypt: false
+  cpu-features: true
   esbuild: false
+  protobufjs: true
+  ssh2: true
