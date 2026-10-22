@@ -1,7 +1,18 @@
-import type { RequestHandler } from "express";
+import type { RequestHandler, Response } from "express";
 import { UserRepository } from "../models/UserRepository.js";
 import { CreateUserSchema, EditUserSchema } from "../schemas/UserSchema.js";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
+
+const findExistingUser = async (userId: string, res: Response) => {
+    const existingUser = await UserRepository.findById(userId);
+    if (!existingUser) {
+        res.status(404).json({ error: "Usuario no encontrado" });
+        return undefined;
+    }
+
+    return existingUser;
+};
 
 export class AdminController {
     public static listUsers: RequestHandler = async (req, res) => {
@@ -73,19 +84,14 @@ export class AdminController {
 
         const updates = result.data;
         const { role, active } = updates;
-        const currentUser = req.user;
-        if (!currentUser) {
-            return res.status(401).json({ error: "Se requiere autenticación." });
-        }
-
-        const self = userId === currentUser.id;
+        const self = userId === req.user!.id;
         if (self && ((role && role !== "admin") || active === false)) {
             return res.status(403).json({ error: 'No puedes cambiar tu propio rol o desactivar tu cuenta. Contacta a un administrador superior.' });
         }
 
-        const existingUser = await UserRepository.findById(userId);
+        const existingUser = await findExistingUser(userId, res);
         if (!existingUser) {
-            return res.status(404).json({ error: "Usuario no encontrado" });
+            return;
         }
 
         if (updates.email && updates.email !== existingUser.email) {
@@ -100,13 +106,41 @@ export class AdminController {
     }
 
     public static deleteUser: RequestHandler = async (req, res) => {
-        // Lógica para eliminar un usuario
-        res.json({ message: `Usuario ${req.params.id} eliminado` });
+        const userId = req.params.id as string;
+
+        const self = userId === req.user!.id;
+        if (self) {
+            return res.status(403).json({ error: 'No puedes eliminar tu propia cuenta. Contacta a un administrador superior.' });
+        }
+
+        const existingUser = await findExistingUser(userId, res);
+        if (!existingUser) {
+            return;
+        }
+
+        await UserRepository.deleteUser(userId);
+        res.json({ message: "Usuario eliminado exitosamente" });
     }
 
-    public static resetUserPassword: RequestHandler = (req, res) => {
-        // Lógica para reiniciar la contraseña de un usuario
-        res.json({ message: `Contraseña del usuario ${req.params.id} reiniciada` });
+    public static resetUserPassword: RequestHandler = async (req, res) => {
+        const userId = req.params.id as string;
+
+        const self = userId === req.user!.id;
+        if (self) {
+            return res.status(403).json({ error: 'No puedes restablecer tu propia contraseña. Contacta a un administrador superior.' });
+        }
+
+        const existingUser = await findExistingUser(userId, res);
+
+        if (!existingUser) {
+            return;
+        }
+
+        const newPassword = crypto.randomBytes(8).toString('hex');
+        const hashedPassword = await bcrypt.hash(newPassword, 12);
+        await UserRepository.resetUserPassword(userId, hashedPassword);
+
+        res.json({ message: "Contraseña restablecida exitosamente", newPassword });
     }
 
     public static createVmCatalog: RequestHandler = (req, res) => {

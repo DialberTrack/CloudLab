@@ -63,13 +63,9 @@ export class LowdbUserRepository implements UserRepositoryContract {
     async listUsers(options: ListUsersOptions = {}): Promise<PaginationResult<UserListItem>> {
         const params = ListUtils.getPaginationParams(options.page, options.limit);
         const query = typeof options.q === "string" ? options.q.trim().toLocaleLowerCase() : "";
-        const result = ListUtils.paginateAndFilter(
-            db.data.users,
-            params,
-            (user) => !query
-                || user.name.toLocaleLowerCase().includes(query)
-                || user.email.toLocaleLowerCase().includes(query)
-        );
+        const result = ListUtils.paginateAndFilter(db.data.users, params, (user) => {
+            return !query || user.name.toLocaleLowerCase().includes(query) || user.email.toLocaleLowerCase().includes(query)
+        });
 
         return {
             ...result,
@@ -85,8 +81,8 @@ export class LowdbUserRepository implements UserRepositoryContract {
 
         if (updates.email !== undefined) {
             const normalizedEmail = updates.email.toLowerCase();
-            const duplicateEmail = db.data.users.some(
-                candidate => candidate.id !== id && candidate.email.toLowerCase() === normalizedEmail
+            const duplicateEmail = db.data.users.some(candidate => 
+                candidate.id !== id && candidate.email.toLowerCase() === normalizedEmail
             );
             if (duplicateEmail) {
                 throw new UserEmailAlreadyExistsError();
@@ -105,6 +101,20 @@ export class LowdbUserRepository implements UserRepositoryContract {
                 user.refreshToken = "";
             }
         }
+        await db.write();
+    }
+
+    async deleteUser(id: string): Promise<void> {
+        db.data.users = db.data.users.filter(user => user.id !== id);
+        await db.write();
+    }
+
+    async resetUserPassword(id: string, newPassword: string): Promise<void> {
+        const user = db.data.users.find(user => user.id === id);
+        if (!user) {
+            throw new UserNotFoundError();
+        }
+        user.password = newPassword;
         await db.write();
     }
 }

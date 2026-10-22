@@ -4,16 +4,13 @@ import { AuthMiddleware } from "../middlewares/auth.js";
 
 export const adminRoutes: Router = Router();
 
-function example (req: Request, res: Response) {
-    res.json({ url: req.url });
-}
-
 adminRoutes.use(AuthMiddleware.authenticate, AuthMiddleware.authorizeAdmin);
+
 adminRoutes.get('/users', AdminController.listUsers);
 adminRoutes.post('/users', AdminController.createUser);
-adminRoutes.patch('/users/:id', AdminController.editUser); // PATCH Editar usuario
-//adminRoutes.get('/users/:id', example) // DELETE Elimiar usuario
-//adminRoutes.get('/users/:id/reset-password', example) // POST Reiniciar contraseña de usuario
+adminRoutes.patch('/users/:id', AdminController.editUser);
+adminRoutes.delete('/users/:id', AdminController.deleteUser);
+adminRoutes.post('/users/:id/reset-password', AdminController.resetUserPassword);
 
 //adminRoutes.get('/vm-catalog', example) // POST Crear maquina virtual en el catalogo
 //adminRoutes.get('/vm-catalog/:id', example) // PATCH Actualizar maquina virtual del catalogo

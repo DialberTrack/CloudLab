@@ -3,10 +3,12 @@ import z from "zod";
 const nameSchema = z.string({ error: "El nombre debe ser texto." })
     .trim()
     .min(3, "Se requiere un nombre de al menos 3 caracteres.");
+
 const emailSchema = z.string({ error: "El correo electrónico debe ser texto." })
     .trim()
     .toLowerCase()
     .pipe(z.email({ error: "El correo electrónico no es válido." }));
+    
 const roleSchema = z.enum(["admin", "user"], {
     error: "El rol debe ser administrador o usuario."
 });
