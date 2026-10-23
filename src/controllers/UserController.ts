@@ -6,7 +6,7 @@ import crypto from 'crypto';
 
 export class UserController {
     public static listUsers: RequestHandler = async (req, res) => {
-        const list = await UserRepository.listUsers({
+        const list = await UserRepository.list({
             page: req.query.page,
             limit: req.query.limit,
             q: req.query.q,
@@ -90,7 +90,7 @@ export class UserController {
             }
         }
 
-        await UserRepository.updateUser(id, updates);
+        await UserRepository.update(id, updates);
         res.json({ message: 'Usuario actualizado exitosamente' });
     };
 
@@ -103,7 +103,7 @@ export class UserController {
             });
         }
 
-        await UserRepository.deleteUser(id);
+        await UserRepository.delete(id);
         return res.json({ message: 'Usuario eliminado exitosamente' });
     };
 
@@ -118,7 +118,7 @@ export class UserController {
 
         const newPassword = crypto.randomBytes(8).toString('hex');
         const hashedPassword = await bcrypt.hash(newPassword, 12);
-        await UserRepository.resetUserPassword(id, hashedPassword);
+        await UserRepository.resetPassword(id, hashedPassword);
 
         return res.json({ message: 'Contraseña restablecida exitosamente', newPassword });
     };

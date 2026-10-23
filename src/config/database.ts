@@ -15,8 +15,3 @@ export const db: Low<DatabaseData> = await JSONFilePreset<DatabaseData>('db.json
     containerImages: [],
     workspaces: [],
 });
-
-if (!Array.isArray(db.data.workspaces)) {
-    db.data.workspaces = [];
-    await db.write();
-}

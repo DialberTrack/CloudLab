@@ -52,7 +52,7 @@ export class LowdbUserRepository implements UserRepositoryContract {
         throw new UserNotFoundError();
     }
 
-    async listUsers(options: ListUsersOptions = {}): Promise<PaginationResult<UserListItem>> {
+    async list(options: ListUsersOptions = {}): Promise<PaginationResult<UserListItem>> {
         const params = ListUtils.getPaginationParams(options.page, options.limit);
         const query = typeof options.q === 'string' ? options.q.trim().toLocaleLowerCase() : '';
         const result = ListUtils.paginateAndFilter(db.data.users, params, (user) => {
@@ -69,7 +69,7 @@ export class LowdbUserRepository implements UserRepositoryContract {
         };
     }
 
-    async updateUser(id: string, updates: EditUser): Promise<void> {
+    async update(id: string, updates: EditUser): Promise<void> {
         const user = db.data.users.find((user) => user.id === id);
         if (!user) {
             throw new UserNotFoundError();
@@ -94,7 +94,7 @@ export class LowdbUserRepository implements UserRepositoryContract {
         await db.write();
     }
 
-    async deleteUser(id: string): Promise<void> {
+    async delete(id: string): Promise<void> {
         const userIndex = db.data.users.findIndex((user) => user.id === id);
         if (userIndex === -1) {
             throw new UserNotFoundError();
@@ -104,7 +104,7 @@ export class LowdbUserRepository implements UserRepositoryContract {
         await db.write();
     }
 
-    async resetUserPassword(id: string, newPassword: string): Promise<void> {
+    async resetPassword(id: string, newPassword: string): Promise<void> {
         const user = db.data.users.find((user) => user.id === id);
         if (!user) {
             throw new UserNotFoundError();

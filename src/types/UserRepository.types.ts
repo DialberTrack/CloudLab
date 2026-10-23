@@ -16,8 +16,8 @@ export interface UserRepositoryContract {
     create(user: User): Promise<User>;
     updateRefreshToken(id: string, refreshToken: string): Promise<void>;
     updatePassword(id: string, newPassword: string): Promise<void>;
-    listUsers(options?: ListUsersOptions): Promise<PaginationResult<UserListItem>>;
-    updateUser(id: string, updates: EditUser): Promise<void>;
-    deleteUser(id: string): Promise<void>;
-    resetUserPassword(id: string, newPassword: string): Promise<void>;
+    list(options?: ListUsersOptions): Promise<PaginationResult<UserListItem>>;
+    update(id: string, updates: EditUser): Promise<void>;
+    delete(id: string): Promise<void>;
+    resetPassword(id: string, newPassword: string): Promise<void>;
 }
