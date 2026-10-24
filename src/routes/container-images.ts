@@ -1,15 +1,21 @@
 import { Router } from 'express';
-import { ContainerImageController } from '../controllers/ContainerImageController.js';
 import { AuthMiddleware } from '../middlewares/AuthMiddleware.js';
+import { ContainerImageController } from '../controllers/ContainerImageController.js';
+import { methodNotAllowed } from '../middlewares/methodNotAllowed.js';
 
-export const containerImageRoutes: Router = Router();
+export const containerImagesRoutes: Router = Router();
 
-containerImageRoutes.use(AuthMiddleware.authenticate);
+containerImagesRoutes.use(AuthMiddleware.authenticate);
 
-containerImageRoutes.get('/', ContainerImageController.listImages);
-containerImageRoutes.get('/:id', ContainerImageController.getImage);
+containerImagesRoutes
+    .route('/')
+    .get(ContainerImageController.list)
+    .post(ContainerImageController.create)
+    .all(methodNotAllowed(['GET', 'POST']));
 
-containerImageRoutes.use(AuthMiddleware.authorizeAdmin);
-containerImageRoutes.post('/', ContainerImageController.createImage);
-containerImageRoutes.patch('/:id', ContainerImageController.updateImage);
-containerImageRoutes.delete('/:id', ContainerImageController.deleteImage);
+containerImagesRoutes
+    .route('/:id')
+    .get(ContainerImageController.get)
+    .patch(ContainerImageController.update)
+    .delete(ContainerImageController.delete)
+    .all(methodNotAllowed(['GET', 'PATCH', 'DELETE']));

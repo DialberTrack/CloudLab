@@ -1,56 +1,36 @@
+import { z } from 'zod';
 import 'dotenv/config';
-import type { SignOptions } from 'jsonwebtoken';
-import z from 'zod';
 
-const jwtDurationPattern = /^(\d+(?:\.\d+)?)\s?(ms|s|m|h|d|y)$/;
-const durationMultipliers = {
-    ms: 1,
-    s: 1_000,
-    m: 60_000,
-    h: 3_600_000,
-    d: 86_400_000,
-    y: 31_557_600_000,
-} as const;
-
-const jwtDurationSchema = z
-    .string()
-    .regex(jwtDurationPattern, 'La duración JWT debe incluir una unidad, por ejemplo 15m o 7d.')
-    .refine((value) => {
-        const match = jwtDurationPattern.exec(value);
-        if (!match) {
-            return false;
-        }
-
-        const amount = Number(match[1]);
-        const unit = match[2] as keyof typeof durationMultipliers;
-        const milliseconds = amount * durationMultipliers[unit];
-        return milliseconds > 0 && Number.isSafeInteger(milliseconds);
-    }, 'La duración JWT debe ser positiva y estar dentro de un rango seguro.')
-    .transform((value) => value as NonNullable<SignOptions['expiresIn']>);
+// Expresión regular para validar formatos como "15m", "10h", "7d", "1y"
+const jwtExpirationRegex = /^\d+(ms|s|m|h|d|w|y)$/;
+const jwtRegexMessage = "Formato de tiempo inválido. Ejemplos válidos: '15m', '2h', '7d'";
 
 const envSchema = z.object({
-    NODE_ENV: z
-        .enum(['development', 'production', 'test'], {
-            error: 'NODE_ENV debe ser development, production o test.',
-        })
-        .default('development'),
-    PORT: z.coerce.number().int().min(1).max(65535).default(8000),
-    JWT_SECRET: z.string().min(1, 'Se requiere JWT_SECRET.'),
-    JWT_REFRESH_SECRET: z.string().min(1, 'Se requiere JWT_REFRESH_SECRET.'),
-    JWT_EXPIRES_IN: jwtDurationSchema.default('15m'),
-    JWT_REFRESH_EXPIRES_IN: jwtDurationSchema.default('7d'),
+    NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+    APP_HOST: z.string().min(1, 'APP_HOST es requerido'),
+    APP_PORT: z.coerce.number().int().min(1).max(65535).default(8000),
+    DB_HOST: z.string().min(1, 'DB_HOST es requerido'),
+    DB_USER: z.string().min(1, 'DB_USER es requerido'),
+    DB_PASSWORD: z.string().min(1, 'DB_PASSWORD es requerido'),
+    DB_NAME: z.string().min(1, 'DB_NAME es requerido'),
+    JWT_SECRET: z.string().min(1, 'JWT_SECRET es requerido'),
+    JWT_REFRESH_SECRET: z.string().min(1, 'JWT_REFRESH_SECRET es requerido'),
+
+    // Agregamos la validación con regex
+    JWT_EXPIRES_IN: z.string().regex(jwtExpirationRegex, jwtRegexMessage).default('15m'),
+    JWT_REFRESH_EXPIRES_IN: z.string().regex(jwtExpirationRegex, jwtRegexMessage).default('7d'),
 });
 
-const parsedEnv = envSchema.parse(process.env);
-const refreshDuration = String(parsedEnv.JWT_REFRESH_EXPIRES_IN);
-const refreshDurationMatch = jwtDurationPattern.exec(refreshDuration);
-if (!refreshDurationMatch) {
-    throw new Error('La duración del token de renovación no es válida.');
+const envParsed = envSchema.safeParse(process.env);
+
+if (!envParsed.success) {
+    const errors = z.treeifyError(envParsed.error);
+
+    console.error('❌ Error de validación en las variables de entorno:');
+    Object.entries(errors.properties ?? {}).forEach(([key, value]) => {
+        console.error(`${key} - ${value.errors?.join(', ')}`);
+    });
+    process.exit(1);
 }
 
-const refreshDurationUnit = refreshDurationMatch[2] as keyof typeof durationMultipliers;
-export const env = {
-    ...parsedEnv,
-    JWT_REFRESH_COOKIE_MAX_AGE_MS:
-        Number(refreshDurationMatch[1]) * durationMultipliers[refreshDurationUnit],
-};
+export const env = envParsed.data;

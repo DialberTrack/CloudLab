@@ -1,13 +1,26 @@
 import { Router } from 'express';
-import { UserController } from '../controllers/UserController.js';
 import { AuthMiddleware } from '../middlewares/AuthMiddleware.js';
+import { UserController } from '../controllers/UserController.js';
+import { methodNotAllowed } from '../middlewares/methodNotAllowed.js';
 
 export const adminRoutes: Router = Router();
 
 adminRoutes.use(AuthMiddleware.authenticate, AuthMiddleware.authorizeAdmin);
 
-adminRoutes.get('/users', UserController.listUsers);
-adminRoutes.post('/users', UserController.createUser);
-adminRoutes.patch('/users/:id', UserController.editUser);
-adminRoutes.delete('/users/:id', UserController.deleteUser);
-adminRoutes.post('/users/:id/reset-password', UserController.resetUserPassword);
+adminRoutes
+    .route('/users')
+    .get(UserController.list)
+    .post(UserController.create)
+    .all(methodNotAllowed(['GET', 'POST']));
+
+adminRoutes
+    .route('/users/:id')
+    .get(UserController.get)
+    .patch(UserController.update)
+    .delete(UserController.delete)
+    .all(methodNotAllowed(['GET', 'PATCH', 'DELETE']));
+
+adminRoutes
+    .route('/users/:id/reset-password')
+    .post(UserController.resetPassword)
+    .all(methodNotAllowed(['POST']));

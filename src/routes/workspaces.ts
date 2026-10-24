@@ -1,19 +1,37 @@
 import { Router } from 'express';
-import { AuthMiddleware } from '../middlewares/AuthMiddleware.js';
 import { WorkspaceController } from '../controllers/WorkspaceController.js';
+import { methodNotAllowed } from '../middlewares/methodNotAllowed.js';
 
-export const workspacesRoutes: Router = Router();
+export const workspaceRoutes: Router = Router();
 
-workspacesRoutes.use(AuthMiddleware.authenticate);
-workspacesRoutes.get('/', WorkspaceController.list);
-workspacesRoutes.post('/', WorkspaceController.create);
+workspaceRoutes
+    .route('/')
+    .get(WorkspaceController.list)
+    .post(WorkspaceController.create)
+    .all(methodNotAllowed(['GET', 'POST']));
 
-/*
-POST   /api/workspaces              # crear
-GET    /api/workspaces/:id          # consultar
-DELETE /api/workspaces/:id          # eliminar
-POST   /api/workspaces/:id/start    # iniciar
-POST   /api/workspaces/:id/stop     # detener
-POST   /api/workspaces/:id/restart  # reiniciar
-GET    /api/workspaces/:id/metrics # consultar métricas
-*/
+workspaceRoutes
+    .route('/:id')
+    .get(WorkspaceController.get)
+    .delete(WorkspaceController.delete)
+    .all(methodNotAllowed(['GET', 'PATCH', 'DELETE']));
+
+workspaceRoutes
+    .route('/:id/start')
+    .post(WorkspaceController.start)
+    .all(methodNotAllowed(['POST']));
+
+workspaceRoutes
+    .route('/:id/stop')
+    .post(WorkspaceController.stop)
+    .all(methodNotAllowed(['POST']));
+
+workspaceRoutes
+    .route('/:id/restart')
+    .post(WorkspaceController.restart)
+    .all(methodNotAllowed(['POST']));
+
+workspaceRoutes
+    .route('/:id/metrics')
+    .get(WorkspaceController.metrics)
+    .all(methodNotAllowed(['GET']));
