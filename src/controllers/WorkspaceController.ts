@@ -4,7 +4,7 @@ import { CreateWorkspaceSchema } from '../schemas/WorkspaceSchema.js';
 import { ContainerImageRepository } from '../repositories/ContainerImageRepository.js';
 import crypto from 'crypto';
 import { DockerService } from '../services/DockerService.js';
-import { getFreePort } from '../utils/Utils.js';
+import { getFreePort, releasePort } from '../utils/Utils.js';
 
 export class WorkspaceController {
     public static list: RequestHandler = async (req, res) => {
@@ -36,9 +36,14 @@ export class WorkspaceController {
         const containerImage = await ContainerImageRepository.getById(catalog_id);
 
         const id = crypto.randomUUID();
-        const freePort = await getFreePort();
+        const usedPorts = (await WorkspaceRepository.listAll()).flatMap(
+            (workspace) => workspace.port ?? []
+        );
+        const freePort = await getFreePort(usedPorts);
         const vncPassword = crypto.randomBytes(8).toString('hex');
 
+        let containerId: string | undefined;
+        let registered = false;
         try {
             const container = await DockerService.createContainer({
                 name: `workspace-${id}`,
@@ -46,6 +51,7 @@ export class WorkspaceController {
                 hostPort: freePort,
                 vncPassword,
             });
+            containerId = container.id;
 
             const workspace = await WorkspaceRepository.create({
                 id,
@@ -57,13 +63,22 @@ export class WorkspaceController {
                 created_at: new Date().toISOString(),
                 vnc_password: vncPassword,
             });
+            registered = true;
 
             await DockerService.startContainer(container.id);
             await WorkspaceRepository.updateStatus(workspace.id, 'running');
 
             return res.status(201).json({ message: 'Maquina lista', workspace });
         } catch (error) {
-            console.error('Error creating container:', error);
+            if (registered) {
+                await WorkspaceRepository.delete(id).catch(() => {});
+            }
+            if (containerId) {
+                await DockerService.removeContainer(containerId).catch(() => {});
+            }
+            throw error;
+        } finally {
+            releasePort(freePort);
         }
     };
 }

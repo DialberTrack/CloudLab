@@ -1,5 +1,6 @@
 import type { ErrorRequestHandler } from 'express';
 import { UserEmailAlreadyExistsError, UserNotFoundError } from '../errors/UserErrors.js';
+import { NoFreePortError } from '../errors/WorkspaceError.js';
 import {
     ContainerImageNotFoundError,
     ImageReferenceAlreadyExistsError,
@@ -27,6 +28,10 @@ export const errorHandler: ErrorRequestHandler = (error: unknown, _req, res, nex
 
     if (error instanceof ContainerImageNotFoundError) {
         return res.status(404).json({ error: error.message });
+    }
+
+    if (error instanceof NoFreePortError) {
+        return res.status(503).json({ error: error.message });
     }
 
     if (error instanceof UserEmailAlreadyExistsError) {

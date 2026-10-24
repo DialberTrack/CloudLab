@@ -3,12 +3,17 @@ import bcrypt from 'bcrypt';
 import { env } from '../config/env.js';
 import { UserRepository } from '../repositories/UserRepository.js';
 import { ChangePasswordSchema, LoginSchema } from '../schemas/UserSchema.js';
-import { TokenManager } from '../utils/TokenManager.js';
+import {
+    TokenManager,
+    WORKSPACE_SESSION_COOKIE,
+    workspaceSessionCookieOptions,
+} from '../utils/TokenManager.js';
 
 const refreshCookieOptions = {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
     sameSite: 'strict' as const,
+    path: '/api/auth',
     maxAge: env.JWT_REFRESH_COOKIE_MAX_AGE_MS,
 };
 
@@ -52,6 +57,7 @@ export class AuthController {
         if (typeof refreshToken === 'string') {
             const decoded = TokenManager.verifyRefreshToken(refreshToken);
             if (decoded) {
+                TokenManager.forgetRotatedRefreshToken(decoded.id);
                 await UserRepository.updateRefreshToken(decoded.id, '');
             }
         }
@@ -60,6 +66,13 @@ export class AuthController {
             httpOnly: refreshCookieOptions.httpOnly,
             secure: refreshCookieOptions.secure,
             sameSite: refreshCookieOptions.sameSite,
+            path: refreshCookieOptions.path,
+        });
+        res.clearCookie(WORKSPACE_SESSION_COOKIE, {
+            httpOnly: workspaceSessionCookieOptions.httpOnly,
+            secure: workspaceSessionCookieOptions.secure,
+            sameSite: workspaceSessionCookieOptions.sameSite,
+            path: workspaceSessionCookieOptions.path,
         });
         return res.json({ message: 'Sesión cerrada correctamente' });
     };
@@ -76,21 +89,43 @@ export class AuthController {
                 httpOnly: refreshCookieOptions.httpOnly,
                 secure: refreshCookieOptions.secure,
                 sameSite: refreshCookieOptions.sameSite,
+                path: refreshCookieOptions.path,
             });
             return res.status(403).json({ error: 'El token de renovación no es válido.' });
         }
 
         const user = await UserRepository.findById(decoded.id);
-        if (!user || !user.active || user.refreshToken !== refreshToken) {
+        const currentToken = user?.refreshToken;
+        const isCurrent = !!currentToken && currentToken === refreshToken;
+        // Ventana de gracia: un refresh simultáneo puede llegar con el token recién rotado.
+        const isRotated =
+            !!currentToken &&
+            !isCurrent &&
+            TokenManager.isRecentlyRotatedRefreshToken(decoded.id, refreshToken);
+        if (!user || !user.active || !currentToken || (!isCurrent && !isRotated)) {
             res.clearCookie('refreshToken', {
                 httpOnly: refreshCookieOptions.httpOnly,
                 secure: refreshCookieOptions.secure,
                 sameSite: refreshCookieOptions.sameSite,
+                path: refreshCookieOptions.path,
             });
             return res.status(403).json({ error: 'El token de renovación no es válido.' });
         }
 
+        let nextRefreshToken = currentToken;
+        if (isCurrent) {
+            nextRefreshToken = TokenManager.generateRefreshToken(user);
+            TokenManager.rememberRotatedRefreshToken(user.id, refreshToken);
+            await UserRepository.updateRefreshToken(user.id, nextRefreshToken);
+        }
+
         const accessToken = TokenManager.generateAccessToken(user);
+        res.cookie('refreshToken', nextRefreshToken, refreshCookieOptions);
+        res.cookie(
+            WORKSPACE_SESSION_COOKIE,
+            TokenManager.generateWorkspaceSession(user, nextRefreshToken),
+            workspaceSessionCookieOptions
+        );
         return res.json({
             message: 'Token renovado correctamente',
             accessToken,

@@ -47,6 +47,11 @@ export class DockerService {
         }
     }
 
+    static async removeContainer(containerId: string): Promise<void> {
+        const container = docker.getContainer(containerId);
+        await container.remove({ force: true });
+    }
+
     static async stopContainer(containerId: string): Promise<void> {
         const container = docker.getContainer(containerId);
         await container.stop();

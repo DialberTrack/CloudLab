@@ -38,4 +38,13 @@ export class AuthMiddleware {
         }
         return next();
     };
+
+    // Solo nginx (mismo host) puede llamar a /internal/*; el puerto 8000 no debe saltarse nginx.
+    public static internalOnly: RequestHandler = (req, res, next) => {
+        const address = req.socket.remoteAddress;
+        if (address !== '127.0.0.1' && address !== '::1' && address !== '::ffff:127.0.0.1') {
+            return res.status(404).json({ error: 'Recurso no encontrado' });
+        }
+        return next();
+    };
 }
