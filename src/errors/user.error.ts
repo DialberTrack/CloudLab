@@ -23,3 +23,9 @@ export class UserNotFoundError extends AppError {
         super(message, 404);
     }
 }
+
+export class InvalidPasswordError extends AppError {
+    constructor(message: string = 'Contraseña inválida') {
+        super(message, 400);
+    }
+}

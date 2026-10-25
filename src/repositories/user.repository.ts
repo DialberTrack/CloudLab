@@ -8,7 +8,6 @@ export interface UserRepository {
     create(user: User): Promise<User>;
     update(id: string, user: Partial<User>): Promise<User | null>;
     delete(id: string): Promise<boolean>;
-    setRefreshToken(id: string, refreshToken: string): Promise<void>;
 }
 
 export const UserRepository = new MariaDBUserRepository();

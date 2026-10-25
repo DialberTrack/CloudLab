@@ -44,8 +44,4 @@ export class MariaDBUserRepository implements UserRepository {
     delete(id: string): Promise<boolean> {
         throw new Error('Method not implemented.');
     }
-
-    async setRefreshToken(id: string, refreshToken: string): Promise<void> {
-        await pool.query('UPDATE users SET refreshToken = ? WHERE id = ?', [refreshToken, id]);
-    }
 }
