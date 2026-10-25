@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { AuthMiddleware } from '../middlewares/AuthMiddleware.js';
-import { UserController } from '../controllers/UserController.js';
-import { methodNotAllowed } from '../middlewares/methodNotAllowed.js';
+import { AuthMiddleware } from '../middlewares/auth.middleware.js';
+import { UserController } from '../controllers/user.controller.js';
+import { methodNotAllowed } from '../middlewares/method-not-allowed.middleware.js';
 
 export const adminRoutes: Router = Router();
 

@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { WorkspaceController } from '../controllers/WorkspaceController.js';
-import { methodNotAllowed } from '../middlewares/methodNotAllowed.js';
+import { WorkspaceController } from '../controllers/workspace.controller.js';
+import { methodNotAllowed } from '../middlewares/method-not-allowed.middleware.js';
 
 export const workspaceRoutes: Router = Router();
 

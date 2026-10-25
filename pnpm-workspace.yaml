@@ -1,4 +1,5 @@
 allowBuilds:
+  argon2: false
   bcrypt: false
   cpu-features: true
   esbuild: false

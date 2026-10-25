@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { AuthController } from '../controllers/AuthController.js';
-import { methodNotAllowed } from '../middlewares/methodNotAllowed.js';
-import { AuthMiddleware } from '../middlewares/AuthMiddleware.js';
+import { AuthController } from '../controllers/auth.controller.js';
+import { methodNotAllowed } from '../middlewares/method-not-allowed.middleware.js';
+import { AuthMiddleware } from '../middlewares/auth.middleware.js';
 
 export const authRoutes: Router = Router();
 

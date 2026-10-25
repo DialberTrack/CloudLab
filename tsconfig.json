@@ -9,8 +9,7 @@
     "moduleResolution": "NodeNext",
     "target": "ESNext",
     "lib": ["ESNext"],
-    "types": ["node"],
-
+    
     // Other Outputs
     "sourceMap": true,
     "declaration": true,
