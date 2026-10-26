@@ -31,6 +31,12 @@ const UserSchema = z.object({
     is_active: activeSchema,
 });
 
+export const CreateUserSchema = UserSchema.pick({
+    name: true,
+    email: true,
+    password: true,
+}).extend({ role: roleSchema.optional() });
+
 export const LoginSchema = UserSchema.pick({ email: true, password: true });
 
 export const ChangePasswordSchema = z.object({
@@ -38,4 +44,24 @@ export const ChangePasswordSchema = z.object({
     password: passwordSchema,
 });
 
+export const UpdateUserSchema = UserSchema.pick({
+    name: true,
+    email: true,
+    role: true,
+    is_active: true,
+})
+    .partial()
+    .refine((data) => Object.keys(data).length > 0, {
+        message: 'Se requiere al menos un campo para actualizar.',
+    });
+
+export const UserIdSchema = z.object({
+    id: userIdSchema,
+});
+
 export type User = z.infer<typeof UserSchema>;
+export type CreateUserInput = z.infer<typeof CreateUserSchema>;
+export type UpdateUserInput = z.infer<typeof UpdateUserSchema>;
+export type LoginInput = z.infer<typeof LoginSchema>;
+export type ChangePasswordInput = z.infer<typeof ChangePasswordSchema>;
+export type UserIdInput = z.infer<typeof UserIdSchema>;

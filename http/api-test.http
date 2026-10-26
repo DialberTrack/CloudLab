@@ -54,18 +54,22 @@ Content-Type: application/json
 Authorization: Bearer {{access_token}}
 
 {
-    "email": "user@cloudlab.local",
-    "name": "User",
+    "email": "user2@cloudlab.local",
+    "name": "User 2",
     "password": "password123"
 }
 
 ###
-PATCH http://192.168.1.10/api/admin/users/4ec2f852-2887-4671-b747-791b4deceeb5
+GET http://192.168.1.10/api/admin/users/8e0ff706-d17f-11f1-be50-f44d30e355a1
+Authorization: Bearer {{access_token}}
+
+###
+PATCH http://192.168.1.10/api/admin/users/8e0ff706-d17f-11f1-be50-f44d30e355a1
 Content-Type: application/json
 Authorization: Bearer {{access_token}}
 
 {
-    "role": "admin"
+    "role": "user"
 }
 
 ###

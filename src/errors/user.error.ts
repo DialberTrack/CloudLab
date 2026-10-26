@@ -6,8 +6,8 @@ export class InvalidCredentialsError extends AppError {
     }
 }
 
-export class UserAlreadyExistsError extends AppError {
-    constructor(message: string = 'El usuario ya existe') {
+export class EmailAlreadyInUseError extends AppError {
+    constructor(message: string = 'El correo electrónico ya está en uso') {
         super(message, 409);
     }
 }

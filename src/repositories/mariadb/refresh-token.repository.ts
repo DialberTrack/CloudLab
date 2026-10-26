@@ -7,7 +7,7 @@ type RefreshTokenRow = RefreshToken & RowDataPacket;
 
 export class MariaDBRefreshTokenRepository implements RefreshTokenRepository {
     async create(data: CreateRefreshTokenDTO): Promise<void> {
-        const [result] = await pool.query<ResultSetHeader>(
+        await pool.query<ResultSetHeader>(
             `
             INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, user_agent, ip_address)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -30,9 +30,12 @@ export class MariaDBRefreshTokenRepository implements RefreshTokenRepository {
             SET is_revoked = 1
             WHERE user_id = ?
                 AND is_revoked = 0
-                AND user_agent <=> ?
+                AND (
+                    user_agent = ?
+                    OR (user_agent IS NULL AND ? IS NULL)
+                )
             `,
-            [userId, userAgent]
+            [userId, userAgent, userAgent]
         );
     }
 
@@ -49,7 +52,7 @@ export class MariaDBRefreshTokenRepository implements RefreshTokenRepository {
                             WHERE user_id = ?
                             ORDER BY is_revoked ASC, created_at DESC
                             LIMIT ?
-                        ) AS recent_tokens
+                        ) AS tokens_to_keep
                     )
                 )
             `,
@@ -58,7 +61,7 @@ export class MariaDBRefreshTokenRepository implements RefreshTokenRepository {
     }
 
     async findById(id: string): Promise<RefreshToken | null> {
-        const [rows] = await pool.query<RefreshTokenRow[]>(
+        const [refreshTokens] = await pool.query<RefreshTokenRow[]>(
             `
             SELECT * FROM refresh_tokens
             WHERE id = ?
@@ -66,7 +69,8 @@ export class MariaDBRefreshTokenRepository implements RefreshTokenRepository {
             [id]
         );
 
-        return rows[0] || null;
+        const refreshToken = refreshTokens[0];
+        return refreshToken ?? null;
     }
 
     async revokeAllTokensForUser(userId: string): Promise<void> {

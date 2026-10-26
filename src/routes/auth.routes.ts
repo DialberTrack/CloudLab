@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { AuthController } from '../controllers/auth.controller.js';
-import { methodNotAllowed } from '../middlewares/method-not-allowed.middleware.js';
-import { AuthMiddleware } from '../middlewares/auth.middleware.js';
 import { UserController } from '../controllers/user.controller.js';
+import { AuthMiddleware } from '../middlewares/auth.middleware.js';
+import { methodNotAllowed } from '../middlewares/method-not-allowed.middleware.js';
 
 export const authRoutes: Router = Router();
 
@@ -25,7 +25,7 @@ authRoutes.use(AuthMiddleware.authenticate);
 
 authRoutes
     .route('/me')
-    .get(UserController.getProfile)
+    .get(UserController.getMe)
     .all(methodNotAllowed(['GET']));
 
 authRoutes
