@@ -7,7 +7,7 @@ export interface RefreshTokenRepository {
     pruneTokens(userId: string, maxTokens: number): Promise<void>;
     findById(id: string): Promise<RefreshToken | null>;
     revokeAllTokensForUser(userId: string): Promise<void>;
-    revokeById(id: string): Promise<void>;
+    revokeById(id: string): Promise<boolean>;
 }
 
 export const RefreshTokenRepository = new MariaDBRefreshTokenRepository();

@@ -1,4 +1,4 @@
-import type { RowDataPacket } from 'mysql2/promise';
+import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import pool from '../../config/mariadb.config.js';
 import type { CreateRefreshTokenDTO, RefreshToken } from '../../types/refresh-token.types.js';
 import type { RefreshTokenRepository } from '../refres-token.repository.js';
@@ -7,7 +7,7 @@ type RefreshTokenRow = RefreshToken & RowDataPacket;
 
 export class MariaDBRefreshTokenRepository implements RefreshTokenRepository {
     async create(data: CreateRefreshTokenDTO): Promise<void> {
-        const [result] = await pool.query(
+        const [result] = await pool.query<ResultSetHeader>(
             `
             INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, user_agent, ip_address)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -81,8 +81,8 @@ export class MariaDBRefreshTokenRepository implements RefreshTokenRepository {
         );
     }
 
-    async revokeById(id: string): Promise<void> {
-        await pool.query(
+    async revokeById(id: string): Promise<boolean> {
+        const [result] = await pool.query<ResultSetHeader>(
             `
             UPDATE refresh_tokens
             SET is_revoked = 1
@@ -91,5 +91,7 @@ export class MariaDBRefreshTokenRepository implements RefreshTokenRepository {
             `,
             [id]
         );
+
+        return result.affectedRows === 1;
     }
 }

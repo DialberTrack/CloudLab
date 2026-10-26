@@ -3,7 +3,7 @@ declare global {
         export interface Request {
             user?: {
                 id: string;
-                role: string;
+                role: 'admin' | 'user';
             };
         }
     }

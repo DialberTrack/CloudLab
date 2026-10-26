@@ -11,6 +11,7 @@ import { TokenManager } from '../utils/token-manager.utils.js';
 import { env } from '../config/env.js';
 import { RefreshTokenRepository } from '../repositories/refres-token.repository.js';
 import { ForbiddenError, UnauthenticatedError } from '../errors/auth.error.js';
+import crypto from 'node:crypto';
 
 const refreshCookieOptions = {
     httpOnly: true,
@@ -109,14 +110,36 @@ export class AuthController {
             );
         }
 
-        const user = await UserRepository.findById(payload.id);
+        const receivedHash = TokenManager.hashToken(refreshToken);
+
+        const storedHash = Buffer.from(storedToken.token_hash, 'hex');
+        const receivedHashBuffer = Buffer.from(receivedHash, 'hex');
+
+        const tokenHashMatches =
+            storedHash.length === receivedHashBuffer.length &&
+            crypto.timingSafeEqual(storedHash, receivedHashBuffer);
+
+        if (
+            !tokenHashMatches ||
+            storedToken.user_id !== payload.user_id ||
+            storedToken.expires_at.getTime() <= Date.now()
+        ) {
+            res.clearCookie('refreshToken', refreshCookieOptions);
+            throw new UnauthenticatedError('Token de refresco inválido o expirado');
+        }
+
+        const user = await UserRepository.findById(payload.user_id);
         if (!user || !user.is_active) {
             throw new UserInactiveError(
                 'Usuario inactivo o no encontrado. Contacte al administrador.'
             );
         }
 
-        await RefreshTokenRepository.revokeById(payload.jti);
+        const revoked = await RefreshTokenRepository.revokeById(payload.jti);
+        if (!revoked) {
+            res.clearCookie('refreshToken', refreshCookieOptions);
+            throw new UnauthenticatedError('Token de refresco inválido o revocado');
+        }
 
         const newAccessToken = TokenManager.generateAccessToken(user);
         const { refreshToken: newRefreshToken, jti: newJti } =

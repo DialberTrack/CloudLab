@@ -4,21 +4,21 @@ import type { User } from '../schemas/user.schema.js';
 import crypto from 'crypto';
 
 export type AccessTokenPayload = {
-    id: string;
+    user_id: string;
     role: User['role'];
     iat: number;
     exp: number;
 };
 
 export type RefreshTokenPayload = {
-    id: string;
+    user_id: string;
     jti: string;
     iat: number;
     exp: number;
 };
 
 const accessTokenPayload = (user: User): Omit<AccessTokenPayload, 'iat' | 'exp'> => ({
-    id: user.id,
+    user_id: user.id,
     role: user.role,
 });
 
@@ -27,7 +27,7 @@ const refreshTokenPayload = (
     jti: string
 ): Omit<RefreshTokenPayload, 'iat' | 'exp'> => ({
     jti,
-    id: user.id,
+    user_id: user.id,
 });
 
 export class TokenManager {
@@ -62,7 +62,7 @@ export class TokenManager {
             }
 
             return {
-                id: payload.id,
+                user_id: payload.user_id,
                 role: payload.role,
                 iat: payload.iat,
                 exp: payload.exp,
@@ -83,7 +83,7 @@ export class TokenManager {
             }
 
             return {
-                id: payload.id,
+                user_id: payload.user_id,
                 jti: payload.jti,
                 iat: payload.iat,
                 exp: payload.exp,
@@ -102,8 +102,8 @@ export class TokenManager {
 const isAccessTokenPayload = (
     payload: Partial<AccessTokenPayload>
 ): payload is AccessTokenPayload =>
-    typeof payload.id === 'string' &&
-    payload.id.length > 0 &&
+    typeof payload.user_id === 'string' &&
+    payload.user_id.length > 0 &&
     (payload.role === 'admin' || payload.role === 'user') &&
     typeof payload.iat === 'number' &&
     typeof payload.exp === 'number';
@@ -111,8 +111,8 @@ const isAccessTokenPayload = (
 const isRefreshTokenPayload = (
     payload: Partial<RefreshTokenPayload>
 ): payload is RefreshTokenPayload =>
-    typeof payload.id === 'string' &&
-    payload.id.length > 0 &&
+    typeof payload.user_id === 'string' &&
+    payload.user_id.length > 0 &&
     typeof payload.jti === 'string' &&
     payload.jti.length > 0 &&
     typeof payload.iat === 'number' &&

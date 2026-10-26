@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx --watch src/app.ts",
-    "test": "node --import tsx --test tests/*.test.ts"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",
@@ -25,7 +27,8 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.6.5",
     "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
   },
   "dependencies": {
     "@types/cookie-parser": "^1.4.10",

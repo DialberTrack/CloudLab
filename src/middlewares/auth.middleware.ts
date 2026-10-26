@@ -21,13 +21,13 @@ export class AuthMiddleware {
             throw new UnauthenticatedError();
         }
 
-        const user = await UserRepository.findById(payload.id);
+        const user = await UserRepository.findById(payload.user_id);
 
         if (!user || !user.is_active) {
             throw new UnauthenticatedError('Usuario no encontrado o inactivo');
         }
 
-        req.user = { ...payload, role: user.role };
+        req.user = { id: payload.user_id, role: user.role };
 
         return next();
     };
