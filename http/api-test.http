@@ -7,7 +7,7 @@ Content-Type: application/json
     "email": "admin@cloudlab.local",
     "password": "password123"
 }
-
+###
 ### Login as user
 # @name loginRequest
 POST http://192.168.1.10/api/auth/login
@@ -40,8 +40,8 @@ Authorization: Bearer {{access_token}}
 Content-Type: application/json
 
 {
-    "current": "newpassword1",
-    "password": "newpassword"
+    "current": "newpassword123",
+    "password": "password123"
 }
 
 ###

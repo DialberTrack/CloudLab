@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import type { CreateRefreshTokenDTO, RefreshToken } from '../types/refresh-token.types.js';
 import { MariaDBRefreshTokenRepository } from './mariadb/refresh-token.repository.js';
 
@@ -9,5 +10,13 @@ export interface RefreshTokenRepository {
     revokeAllTokensForUser(userId: string): Promise<void>;
     revokeById(id: string): Promise<boolean>;
 }
+
+export const refreshCookieOptions = {
+    httpOnly: true,
+    secure: env.NODE_ENV === 'production',
+    sameSite: 'strict' as const,
+    path: '/api/auth',
+    maxAge: env.JWT_REFRESH_COOKIE_MAX_AGE_MS,
+};
 
 export const RefreshTokenRepository = new MariaDBRefreshTokenRepository();

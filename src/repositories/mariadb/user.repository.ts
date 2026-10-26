@@ -28,10 +28,6 @@ export class MariaDBUserRepository implements UserRepository {
         return rows[0] || null;
     }
 
-    create(user: User): Promise<User> {
-        throw new Error('Method not implemented.');
-    }
-
     async update(id: string, user: Partial<User>): Promise<User | null> {
         if (Object.keys(user).length === 0) {
             return this.findById(id);
@@ -41,7 +37,21 @@ export class MariaDBUserRepository implements UserRepository {
         return this.findById(id);
     }
 
+    async list(): Promise<Omit<User, 'password'>[]> {
+        const [rows] = await pool.query<UserRow[]>('SELECT * FROM users');
+        return rows.map((row) => this.sanitizeUser(row));
+    }
+
+    create(user: User): Promise<User> {
+        throw new Error('Method not implemented.');
+    }
+
     delete(id: string): Promise<boolean> {
         throw new Error('Method not implemented.');
+    }
+
+    private sanitizeUser(user: User): Omit<User, 'password'> {
+        const { password, ...sanitizedUser } = user;
+        return sanitizedUser;
     }
 }

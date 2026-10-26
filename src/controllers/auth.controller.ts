@@ -1,11 +1,7 @@
 import type { RequestHandler } from 'express';
-import { ChangePasswordSchema, LoginSchema } from '../schemas/user.schema.js';
+import { LoginSchema } from '../schemas/user.schema.js';
 import { UserRepository } from '../repositories/user.repository.js';
-import {
-    InvalidCredentialsError,
-    InvalidPasswordError,
-    UserInactiveError,
-} from '../errors/user.error.js';
+import { InvalidCredentialsError, UserInactiveError } from '../errors/user.error.js';
 import argon2 from 'argon2';
 import { TokenManager } from '../utils/token-manager.utils.js';
 import { env } from '../config/env.js';
@@ -13,13 +9,7 @@ import { RefreshTokenRepository } from '../repositories/refres-token.repository.
 import { ForbiddenError, UnauthenticatedError } from '../errors/auth.error.js';
 import crypto from 'node:crypto';
 
-const refreshCookieOptions = {
-    httpOnly: true,
-    secure: env.NODE_ENV === 'production',
-    sameSite: 'strict' as const,
-    path: '/api/auth',
-    maxAge: env.JWT_REFRESH_COOKIE_MAX_AGE_MS,
-};
+import { refreshCookieOptions } from '../repositories/refres-token.repository.js';
 
 export class AuthController {
     static login: RequestHandler = async (req, res) => {
@@ -169,51 +159,5 @@ export class AuthController {
         const { password, is_active, ...userInfo } = user;
 
         res.json({ user: userInfo });
-    };
-
-    static changePassword: RequestHandler = async (req, res) => {
-        const result = ChangePasswordSchema.safeParse(req.body || {});
-
-        if (!result.success) {
-            return res.status(400).json({ error: result.error.issues });
-        }
-
-        const { current, password } = result.data;
-
-        const user = await UserRepository.getById(req.user!.id);
-
-        const isOldPasswordValid = await argon2.verify(user.password, current);
-        if (!isOldPasswordValid) {
-            throw new InvalidPasswordError();
-        }
-
-        if (current === password) {
-            throw new InvalidPasswordError('La nueva contraseña no puede ser igual a la actual');
-        }
-
-        const newPasswordHash = await argon2.hash(password);
-        await UserRepository.update(user.id, { password: newPasswordHash });
-
-        await RefreshTokenRepository.revokeAllTokensForUser(user.id);
-
-        const accessToken = TokenManager.generateAccessToken(user);
-        const { refreshToken, jti } = TokenManager.generateRefreshToken(user);
-
-        const userAgent = req.headers['user-agent'] || null;
-
-        await RefreshTokenRepository.create({
-            id: jti,
-            user_id: user.id,
-            token_hash: TokenManager.hashToken(refreshToken),
-            user_agent: userAgent,
-            ip_address: req.ip,
-            expires_at: new Date(Date.now() + env.JWT_REFRESH_COOKIE_MAX_AGE_MS),
-        });
-
-        await RefreshTokenRepository.pruneTokens(user.id, env.MAX_REFRESH_TOKENS_PER_USER);
-
-        res.cookie('refreshToken', refreshToken, refreshCookieOptions);
-
-        res.json({ message: 'Contraseña cambiada exitosamente', accessToken });
     };
 }

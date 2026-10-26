@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { AuthController } from '../controllers/auth.controller.js';
 import { methodNotAllowed } from '../middlewares/method-not-allowed.middleware.js';
 import { AuthMiddleware } from '../middlewares/auth.middleware.js';
+import { UserController } from '../controllers/user.controller.js';
 
 export const authRoutes: Router = Router();
 
@@ -29,5 +30,5 @@ authRoutes
 
 authRoutes
     .route('/change-password')
-    .post(AuthController.changePassword)
+    .post(UserController.changePassword)
     .all(methodNotAllowed(['POST']));
