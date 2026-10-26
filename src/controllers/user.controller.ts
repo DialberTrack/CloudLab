@@ -9,10 +9,11 @@ import {
 } from '../repositories/refres-token.repository.js';
 import { TokenManager } from '../utils/token-manager.utils.js';
 import { env } from '../config/env.js';
+import { ListUtils } from '../utils/list.utils.js';
 
 export class UserController {
     static list: RequestHandler = async (req, res) => {
-        const users = await UserRepository.list();
+        const users = await UserRepository.list(ListUtils.parseQuery(req.query));
         res.json(users);
     };
 
@@ -80,5 +81,13 @@ export class UserController {
         res.cookie('refreshToken', refreshToken, refreshCookieOptions);
 
         res.json({ message: 'Contraseña cambiada exitosamente', accessToken });
+    };
+
+    static getProfile: RequestHandler = async (req, res) => {
+        const user = await UserRepository.getById(req.user!.id);
+
+        const { password, is_active, ...userInfo } = user;
+
+        res.json({ user: userInfo });
     };
 }

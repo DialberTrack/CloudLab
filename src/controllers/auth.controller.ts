@@ -22,6 +22,8 @@ export class AuthController {
 
         const user = await UserRepository.findByEmail(email);
 
+        console.log(user?.password, password);
+
         if (!user || !(await argon2.verify(user.password, password))) {
             throw new InvalidCredentialsError();
         }
@@ -151,13 +153,5 @@ export class AuthController {
         res.cookie('refreshToken', newRefreshToken, refreshCookieOptions);
 
         res.json({ message: 'Token refrescado exitosamente', accessToken: newAccessToken });
-    };
-
-    static me: RequestHandler = async (req, res) => {
-        const user = await UserRepository.getById(req.user!.id);
-
-        const { password, is_active, ...userInfo } = user;
-
-        res.json({ user: userInfo });
     };
 }

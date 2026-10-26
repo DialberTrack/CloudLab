@@ -25,7 +25,7 @@ authRoutes.use(AuthMiddleware.authenticate);
 
 authRoutes
     .route('/me')
-    .get(AuthController.me)
+    .get(UserController.getProfile)
     .all(methodNotAllowed(['GET']));
 
 authRoutes
