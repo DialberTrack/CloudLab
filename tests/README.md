@@ -23,7 +23,7 @@ pnpm exec vitest run tests/auth-refresh.test.ts
 Para ejecutar una prueba por nombre:
 
 ```bash
-pnpm exec vitest run tests/auth-refresh.test.ts -t "rotates a valid refresh token"
+pnpm exec vitest run tests/auth-refresh.test.ts -t "rota un token de actualización válido"
 ```
 
 ## Estructura recomendada

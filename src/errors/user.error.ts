@@ -24,8 +24,22 @@ export class UserNotFoundError extends AppError {
     }
 }
 
+export class UserDeletionError extends AppError {
+    constructor(message: string = 'No se pudo eliminar el usuario') {
+        super(message, 500);
+    }
+}
+
 export class InvalidPasswordError extends AppError {
     constructor(message: string = 'Contraseña inválida') {
         super(message, 400);
+    }
+}
+
+export class ValidationError extends AppError {
+    public issues: unknown;
+    constructor(issues: unknown, message: string = 'Error de validación') {
+        super(message, 400);
+        this.issues = issues;
     }
 }

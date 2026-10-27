@@ -1,9 +1,15 @@
 import argon2 from 'argon2';
 import type { RequestHandler } from 'express';
 
+import crypto from 'node:crypto';
 import { env } from '../config/env.js';
 import { UnauthorizedError } from '../errors/auth.error.js';
-import { EmailAlreadyInUseError, InvalidPasswordError } from '../errors/user.error.js';
+import {
+    EmailAlreadyInUseError,
+    InvalidPasswordError,
+    UserDeletionError,
+    ValidationError,
+} from '../errors/user.error.js';
 import {
     refreshCookieOptions,
     RefreshTokenRepository,
@@ -19,6 +25,16 @@ import { ListUtils } from '../utils/list.utils.js';
 import { TokenManager } from '../utils/token-manager.utils.js';
 
 export class UserController {
+    /**
+     * Lista los usuarios administrables con paginacion y filtro opcional.
+     *
+     * @endpoint GET /api/admin/users
+     * @param req Request de Express; los parametros de consulta se validan mediante
+     * `ListUtils.parseQuery`.
+     * @param res Response de Express.
+     * @returns {Promise<void>} Responde con la lista y sus metadatos de paginacion.
+     * @throws {AppError} Si los parametros de consulta son invalidos o falla el repositorio.
+     */
     static list: RequestHandler = async (req, res) => {
         const query = ListUtils.parseQuery(req.query);
         const users = await UserRepository.list(query);
@@ -26,11 +42,22 @@ export class UserController {
         res.json(users);
     };
 
+    /**
+     * Crea un usuario administrativo y almacena unicamente su contrasena hasheada.
+     *
+     * @endpoint POST /api/admin/users
+     * @param req Request con nombre, correo, contrasena y rol opcional.
+     * @param res Response de Express.
+     * @returns {Promise<void>} Responde con el usuario creado sin el campo `password`.
+     * @throws {ValidationError} Cuando el cuerpo no cumple el esquema de usuario.
+     * @throws {EmailAlreadyInUseError} Si el correo ya esta registrado.
+     * @throws {AppError} Si falla el hash o la persistencia.
+     */
     static create: RequestHandler = async (req, res) => {
         const validation = CreateUserSchema.safeParse(req.body || {});
 
         if (!validation.success) {
-            return res.status(400).json({ error: validation.error.issues });
+            throw new ValidationError(validation.error.issues);
         }
 
         const { name, email, password, role } = validation.data;
@@ -49,13 +76,25 @@ export class UserController {
             role,
         });
 
-        res.json({ user: newUser });
+        const { password: _password, ...newUserWithoutPassword } = newUser;
+
+        res.json({ user: newUserWithoutPassword });
     };
 
+    /**
+     * Obtiene un usuario por su UUID sin exponer su contrasena.
+     *
+     * @endpoint GET /api/admin/users/:id
+     * @param req Request cuyo parametro `id` debe ser un UUID.
+     * @param res Response de Express.
+     * @returns {Promise<void>} Responde con el usuario solicitado.
+     * @throws {ValidationError} Si el UUID es invalido.
+     * @throws {UserNotFoundError} Si el usuario no existe.
+     */
     static get: RequestHandler = async (req, res) => {
         const validation = UserIdSchema.safeParse(req.params);
         if (!validation.success) {
-            return res.status(400).json({ error: validation.error.issues });
+            throw new ValidationError(validation.error.issues);
         }
 
         const { id } = validation.data;
@@ -65,10 +104,22 @@ export class UserController {
         res.json({ user: userWithoutPassword });
     };
 
+    /**
+     * Actualiza un usuario distinto del administrador autenticado.
+     *
+     * @endpoint PATCH /api/admin/users/:id
+     * @param req Request con UUID y al menos un campo actualizable.
+     * @param res Response de Express.
+     * @returns {Promise<void>} Responde con el usuario actualizado sin su contrasena.
+     * @throws {ValidationError} Si el UUID o el cuerpo son invalidos.
+     * @throws {UnauthorizedError} Si se intenta modificar al propio usuario o el rol de un admin.
+     * @throws {UserNotFoundError} Si el usuario no existe.
+     * @throws {EmailAlreadyInUseError} Si el nuevo correo ya esta registrado.
+     */
     static update: RequestHandler = async (req, res) => {
         const idValidation = UserIdSchema.safeParse(req.params);
         if (!idValidation.success) {
-            return res.status(400).json({ error: idValidation.error.issues });
+            throw new ValidationError(idValidation.error.issues);
         }
 
         const { id } = idValidation.data;
@@ -79,7 +130,7 @@ export class UserController {
 
         const updateValidation = UpdateUserSchema.safeParse(req.body || {});
         if (!updateValidation.success) {
-            return res.status(400).json({ error: updateValidation.error.issues });
+            throw new ValidationError(updateValidation.error.issues);
         }
 
         const updates = updateValidation.data;
@@ -102,19 +153,107 @@ export class UserController {
         res.json({ user: userWithoutPassword });
     };
 
+    /**
+     * Elimina un usuario no administrador y nunca permite autoeliminacion.
+     *
+     * @endpoint DELETE /api/admin/users/:id
+     * @param req Request con UUID y el usuario autenticado en `req.user`.
+     * @param res Response de Express.
+     * @returns {Promise<void>} Responde cuando el borrado afecta una fila.
+     * @throws {ValidationError} Si el UUID es invalido.
+     * @throws {UnauthorizedError} Si el objetivo es el usuario autenticado o un admin.
+     * @throws {UserNotFoundError} Si el usuario no existe.
+     * @throws {UserDeletionError} Si la eliminacion no afecta ninguna fila.
+     */
     static delete: RequestHandler = async (req, res) => {
-        // TODO: implementar la eliminación de usuarios.
+        const validation = UserIdSchema.safeParse(req.params);
+        if (!validation.success) {
+            throw new ValidationError(validation.error.issues);
+        }
+
+        const { id } = validation.data;
+
+        if (req.user!.id === id) {
+            throw new UnauthorizedError('No puedes eliminar tu propio usuario.');
+        }
+
+        const userToDelete = await UserRepository.getById(id);
+
+        if (userToDelete.role === 'admin') {
+            throw new UnauthorizedError('No puedes eliminar un usuario administrador.');
+        }
+
+        const deleted = await UserRepository.delete(id);
+
+        if (!deleted) {
+            throw new UserDeletionError();
+        }
+
+        res.json({ message: 'Usuario eliminado exitosamente' });
     };
 
-    static resetPassword: RequestHandler = (req, res) => {
-        // TODO: implementar el restablecimiento de contraseñas.
+    /**
+     * Genera una contrasena temporal para un usuario no administrador.
+     *
+     * @endpoint POST /api/admin/users/:id/reset-password
+     * @param req Request con UUID y el usuario autenticado en `req.user`.
+     * @param res Response de Express.
+     * @returns {Promise<void>} Responde con la contrasena temporal una sola vez.
+     * @throws {ValidationError} Si el UUID es invalido.
+     * @throws {UnauthorizedError} Si se intenta restablecer la propia cuenta o la de un admin.
+     * @throws {UserNotFoundError} Si el usuario no existe.
+     */
+    static resetPassword: RequestHandler = async (req, res) => {
+        const validation = UserIdSchema.safeParse(req.params);
+        if (!validation.success) {
+            throw new ValidationError(validation.error.issues);
+        }
+
+        const { id } = validation.data;
+
+        if (req.user!.id === id) {
+            throw new UnauthorizedError('No puedes restablecer tu propia contraseña.');
+        }
+
+        const userToReset = await UserRepository.getById(id);
+
+        if (userToReset.role === 'admin') {
+            throw new UnauthorizedError(
+                'No puedes restablecer la contraseña de un usuario administrador.'
+            );
+        }
+
+        const newPassword = crypto.randomBytes(6).toString('hex');
+        const hashedPassword = await argon2.hash(newPassword);
+
+        await UserRepository.update(id, { password: hashedPassword });
+
+        res.json({
+            message: 'Contraseña restablecida exitosamente',
+            user: {
+                id: userToReset.id,
+                email: userToReset.email,
+                newPassword,
+            },
+        });
     };
 
+    /**
+     * Cambia la contrasena del usuario autenticado y rota sus sesiones.
+     *
+     * @endpoint POST /api/auth/change-password
+     * @param req Request con las contrasenas actual y nueva.
+     * @param res Response de Express.
+     * @returns {Promise<void>} Responde con un nuevo access token y cookie de refresh.
+     * @throws {ValidationError} Si el cuerpo es invalido.
+     * @throws {InvalidPasswordError} Si la contrasena actual es incorrecta o no cambia.
+     * @throws {UserNotFoundError} Si el usuario autenticado no existe.
+     */
     static changePassword: RequestHandler = async (req, res) => {
         const validation = ChangePasswordSchema.safeParse(req.body || {});
 
         if (!validation.success) {
-            return res.status(400).json({ error: validation.error.issues });
+            throw new ValidationError(validation.error.issues);
         }
 
         const { current, password: newPassword } = validation.data;
@@ -155,6 +294,15 @@ export class UserController {
         res.json({ message: 'Contraseña cambiada exitosamente', accessToken });
     };
 
+    /**
+     * Devuelve los datos del usuario autenticado sin campos sensibles.
+     *
+     * @endpoint GET /api/auth/me
+     * @param req Request con el usuario autenticado en `req.user`.
+     * @param res Response de Express.
+     * @returns {Promise<void>} Responde con el perfil del usuario.
+     * @throws {UserNotFoundError} Si el usuario autenticado ya no existe.
+     */
     static getMe: RequestHandler = async (req, res) => {
         const authenticatedUser = await UserRepository.getById(req.user!.id);
         const { password: _password, is_active: _isActive, ...userInfo } = authenticatedUser;

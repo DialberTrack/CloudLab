@@ -16,7 +16,7 @@ const user: User = {
 };
 
 describe('TokenManager', () => {
-    it('generates and verifies an access token with user_id, role, iat and exp', () => {
+    it('genera y verifica un token de acceso con user_id, role, iat y exp', () => {
         const token = TokenManager.generateAccessToken(user);
         const payload = TokenManager.verifyAccessToken(token);
 
@@ -31,7 +31,7 @@ describe('TokenManager', () => {
         expect(payload).not.toHaveProperty('email');
     });
 
-    it('generates a refresh token with user_id and jti, but without role', () => {
+    it('genera un token de actualización con user_id y jti, pero sin role', () => {
         const { refreshToken, jti } = TokenManager.generateRefreshToken(user);
         const payload = TokenManager.verifyRefreshToken(refreshToken);
 
@@ -46,7 +46,7 @@ describe('TokenManager', () => {
         expect(payload?.exp).toEqual(expect.any(Number));
     });
 
-    it('rejects a token signed with the wrong secret or wrong token type', () => {
+    it('rechaza un token firmado con el secreto o tipo de token incorrectos', () => {
         const accessToken = TokenManager.generateAccessToken(user);
         const refreshPayload = jwt.decode(accessToken);
 
@@ -58,7 +58,7 @@ describe('TokenManager', () => {
         ).toBeNull();
     });
 
-    it('hashes the same refresh token deterministically', () => {
+    it('genera determinísticamente el mismo hash para un token de actualización', () => {
         const { refreshToken } = TokenManager.generateRefreshToken(user);
 
         expect(TokenManager.hashToken(refreshToken)).toBe(TokenManager.hashToken(refreshToken));

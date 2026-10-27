@@ -19,6 +19,13 @@ vi.mock('../src/repositories/user.repository.js', () => ({
 }));
 
 vi.mock('../src/repositories/refres-token.repository.js', () => ({
+    refreshCookieOptions: {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'strict',
+        path: '/api/auth',
+        maxAge: 0,
+    },
     RefreshTokenRepository: {
         findById: mocks.findRefreshTokenById,
         revokeById: mocks.revokeById,
@@ -63,7 +70,7 @@ describe('AuthController.refresh', () => {
         mocks.revokeById.mockResolvedValue(true);
     });
 
-    it('rotates a valid refresh token and persists the replacement hash', async () => {
+    it('rota un token de actualización válido y persiste el hash de reemplazo', async () => {
         const { refreshToken, jti } = TokenManager.generateRefreshToken(user);
         mocks.findRefreshTokenById.mockResolvedValue({
             id: jti,
@@ -96,7 +103,7 @@ describe('AuthController.refresh', () => {
         });
     });
 
-    it('rejects a refresh token whose persisted hash does not match', async () => {
+    it('rechaza un token de actualización cuyo hash persistido no coincide', async () => {
         const { refreshToken, jti } = TokenManager.generateRefreshToken(user);
         mocks.findRefreshTokenById.mockResolvedValue({
             id: jti,
@@ -116,7 +123,7 @@ describe('AuthController.refresh', () => {
         expect(res.clearCookie).toHaveBeenCalledOnce();
     });
 
-    it('rejects a refresh token expired in the database', async () => {
+    it('rechaza un token de actualización expirado en la base de datos', async () => {
         const { refreshToken, jti } = TokenManager.generateRefreshToken(user);
         mocks.findRefreshTokenById.mockResolvedValue({
             id: jti,
@@ -135,7 +142,7 @@ describe('AuthController.refresh', () => {
         expect(res.clearCookie).toHaveBeenCalledOnce();
     });
 
-    it('rejects a token whose database owner differs from the JWT owner', async () => {
+    it('rechaza un token cuyo propietario en la base de datos difiere del propietario del JWT', async () => {
         const { refreshToken, jti } = TokenManager.generateRefreshToken(user);
         mocks.findRefreshTokenById.mockResolvedValue({
             id: jti,
@@ -154,7 +161,7 @@ describe('AuthController.refresh', () => {
         expect(res.clearCookie).toHaveBeenCalledOnce();
     });
 
-    it('rejects when another request already revoked the token', async () => {
+    it('rechaza el token cuando otra solicitud ya lo revocó', async () => {
         const { refreshToken, jti } = TokenManager.generateRefreshToken(user);
         mocks.findRefreshTokenById.mockResolvedValue({
             id: jti,
@@ -174,7 +181,7 @@ describe('AuthController.refresh', () => {
         expect(res.clearCookie).toHaveBeenCalledOnce();
     });
 
-    it('revokes the user session family when a previously revoked token is reused', async () => {
+    it('revoca la familia de sesiones del usuario cuando se reutiliza un token revocado', async () => {
         const { refreshToken, jti } = TokenManager.generateRefreshToken(user);
         mocks.findRefreshTokenById.mockResolvedValue({
             id: jti,
