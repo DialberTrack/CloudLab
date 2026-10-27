@@ -12,6 +12,7 @@ export interface Pagination {
 }
 
 export class ListUtils {
+    /** Convierte parametros de consulta en una pagina segura con limite maximo de 100. */
     static parseQuery(query: Record<string, unknown>): ListQuery {
         const page = ListUtils.parsePositiveInteger(query.page, 1);
         const limit = Math.min(ListUtils.parsePositiveInteger(query.limit, 10), 100);
@@ -24,10 +25,12 @@ export class ListUtils {
         };
     }
 
+    /** Calcula el offset SQL de una pagina. */
     static getOffset({ page, limit }: Pick<ListQuery, 'page' | 'limit'>): number {
         return (page - 1) * limit;
     }
 
+    /** Construye los metadatos de paginacion para una coleccion. */
     static pagination(
         { page, limit }: Pick<ListQuery, 'page' | 'limit'>,
         total: number,
