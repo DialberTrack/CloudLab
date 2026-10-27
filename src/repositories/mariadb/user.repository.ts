@@ -52,6 +52,14 @@ export class MariaDBUserRepository implements UserRepository {
         return users[0] ?? null;
     }
 
+    /**
+     * Busca un usuario por correo y convierte la ausencia en un error de dominio.
+     *
+     * @param email Correo electronico normalizado.
+     * @returns {Promise<User>} Usuario encontrado.
+     * @throws {UserNotFoundError} Si no existe.
+     * @throws {Error} Si MariaDB rechaza la consulta.
+     */
     async getByEmail(email: string): Promise<User> {
         const user = await this.findByEmail(email);
 
@@ -130,13 +138,9 @@ export class MariaDBUserRepository implements UserRepository {
      * @throws {Error} Si MariaDB rechaza la insercion.
      */
     async create(user: CreateUserInput): Promise<User> {
-        const { role, ...userData } = user;
-        const dataToInsert = role === undefined ? userData : { ...userData, role };
+        await pool.query('INSERT INTO users SET ?', [user]);
 
-        await pool.query('INSERT INTO users SET ?', [dataToInsert]);
-
-        const newUser = await this.getByEmail(user.email);
-        return newUser;
+        return await this.getByEmail(user.email);
     }
 
     /**

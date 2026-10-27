@@ -60,7 +60,7 @@ Content-Type: application/json
 Authorization: Bearer {{access_token}}
 
 {
-    "email": "test2@cloudlab.local",
+    "email": "test3@cloudlab.local",
     "name": "Test",
     "password": "password123"
 }
@@ -101,11 +101,15 @@ Content-Type: application/json
 
 {
     "name": "Ubuntu",
-    "imageReference": "ubuntu-cloudlab:latest"
+    "image": "1"
 }
 
+### Get container image
+GET http://192.168.1.10/api/container-images/d1999e8d-d1c8-11f1-be50-f44d30e355a1
+Authorization: Bearer {{access_token}}
+
 ### Delete container image
-DELETE http://192.168.1.10/api/container-images/16697629-4254-4fc2-bcce-4c88f4ecde2f
+DELETE http://192.168.1.10/api/container-images/c57801aa-d1cb-11f1-be50-f44d30e355a1
 Authorization: Bearer {{access_token}}
 
 ### Update container image
@@ -114,7 +118,7 @@ Authorization: Bearer {{access_token}}
 Content-Type: application/json
 
 {
-    "iconUrl": "http://imagen.png"
+    "name": "Ubuntu 20.04"
 }
 
 # -----------------------------------------------------------------------------

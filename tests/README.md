@@ -32,6 +32,10 @@ Cada archivo debe probar una unidad concreta:
 
 - `token-manager.test.ts`: firma, validación y forma del JWT.
 - `auth-refresh.test.ts`: rotación, cookies, revocación y validación contra la base de datos.
+- `user-controller.test.ts`: reglas administrativas de eliminación y códigos de error.
+- `user-repository.test.ts`: eliminación y manejo de `affectedRows` en MariaDB.
+- `container-image-controller.test.ts`: catálogo, validación, duplicados y permisos de negocio.
+- `container-image-repository.test.ts`: consultas, defaults y eliminación de imágenes.
 - `feature-name.test.ts`: una funcionalidad adicional.
 
 Usa `describe` para agrupar la funcionalidad e `it` para expresar un comportamiento observable:

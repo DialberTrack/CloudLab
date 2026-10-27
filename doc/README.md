@@ -240,17 +240,95 @@ que se implementen sus repositorios, esquemas y controladores.
 
 ## Imagenes de contenedor
 
-Todos los endpoints requieren Bearer token:
+Todos los endpoints requieren Bearer token. El listado y la consulta están disponibles
+para cualquier usuario autenticado; crear, actualizar y eliminar requieren rol `admin`.
+
+Los usuarios normales reciben únicamente imágenes con `is_active = true`, que son las
+opciones disponibles para crear un workspace. Los administradores reciben todas las
+imágenes, incluidas las desactivadas, para poder gestionar el catálogo.
 
 | Metodo | Endpoint | Proposito |
 |---|---|---|
-| `GET` | `/container-images` | Listar imagenes |
-| `POST` | `/container-images` | Crear imagen |
+| `GET` | `/container-images` | Listar imagenes activas |
+| `POST` | `/container-images` | Crear imagen (admin) |
 | `GET` | `/container-images/:id` | Consultar imagen |
-| `PATCH` | `/container-images/:id` | Actualizar imagen |
-| `DELETE` | `/container-images/:id` | Eliminar imagen |
+| `PATCH` | `/container-images/:id` | Actualizar imagen (admin) |
+| `DELETE` | `/container-images/:id` | Eliminar imagen (admin) |
 
-Estos handlers tambien son stubs actualmente y no tienen respuestas implementadas.
+### `GET /container-images`
+
+Devuelve el catálogo ordenado por `sort_order` y después por nombre. Los usuarios normales
+reciben solo imágenes activas; los administradores reciben todas.
+
+```json
+{
+    "data": [
+        {
+            "id": "<uuid>",
+            "name": "Ubuntu 24.04",
+            "image": "ubuntu:24.04",
+            "description": "Entorno base Ubuntu 24.04 LTS",
+            "icon": "/icons/ubuntu.svg",
+            "is_active": true,
+            "sort_order": 1,
+            "created_at": "2026-01-01T00:00:00.000Z",
+            "updated_at": "2026-01-01T00:00:00.000Z"
+        }
+    ]
+}
+```
+
+### `POST /container-images`
+
+Requiere rol `admin`. Registra una imagen disponible para workspaces.
+
+```json
+{
+    "name": "Ubuntu 24.04",
+    "image": "ubuntu:24.04",
+    "description": "Entorno base Ubuntu 24.04 LTS",
+    "icon": "/icons/ubuntu.svg",
+    "sort_order": 1,
+    "is_active": true
+}
+```
+
+`sort_order` por defecto es `0` e `is_active` por defecto es `true`. `image` debe
+ser una referencia Docker válida, como `ubuntu:24.04`, `node:22-bookworm` o
+`registry.example.com/team/app:1.0.0`.
+
+### `GET /container-images/:id`
+
+Obtiene una imagen por UUID. Los usuarios normales solo pueden consultar imágenes activas;
+los administradores también pueden consultar imágenes inactivas. Responde `200` con
+`{ "data": { ... } }`.
+**Errores:** `400` UUID inválido, `404` imagen inexistente o inactiva para un usuario normal.
+
+### `PATCH /container-images/:id`
+
+Requiere rol `admin`. Actualiza parcialmente `name`, `image`, `description`, `icon`,
+`sort_order` o `is_active`. Se requiere al menos un campo.
+
+```json
+{
+    "description": "Imagen actualizada",
+    "is_active": false
+}
+```
+
+No se permite cambiar `image` a una referencia ya registrada.
+**Errores:** `400` datos inválidos, `404` imagen inexistente, `409` referencia duplicada.
+
+### `DELETE /container-images/:id`
+
+Requiere rol `admin`. Elimina la imagen de forma permanente.
+
+```json
+{ "message": "Imagen de contenedor eliminada correctamente." }
+```
+
+**Errores:** `400` UUID inválido, `404` imagen inexistente, `500` si el borrado no
+afecta ninguna fila.
 
 ## Codigos HTTP frecuentes
 

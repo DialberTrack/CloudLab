@@ -3,16 +3,13 @@ import type { RequestHandler } from 'express';
 import crypto from 'node:crypto';
 import { env } from '../config/env.js';
 import { ForbiddenError, UnauthenticatedError } from '../errors/auth.error.js';
-import {
-    InvalidCredentialsError,
-    UserInactiveError,
-    ValidationError,
-} from '../errors/user.error.js';
+import { InvalidCredentialsError, UserInactiveError } from '../errors/user.error.js';
 import { RefreshTokenRepository } from '../repositories/refres-token.repository.js';
 import { UserRepository } from '../repositories/user.repository.js';
 import { LoginSchema } from '../schemas/user.schema.js';
 import { TokenManager } from '../utils/token-manager.utils.js';
 
+import { ValidationError } from '../errors/app.error.js';
 import { refreshCookieOptions } from '../repositories/refres-token.repository.js';
 
 export class AuthController {

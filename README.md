@@ -56,3 +56,26 @@ pnpm typecheck
 ```
 
 Los tests unitarios mockean los repositorios y no requieren una conexión real a MariaDB.
+
+## Catálogo de imágenes
+
+La tabla `container_images` contiene las imágenes Docker que los usuarios pueden
+seleccionar al crear un workspace. El script base para MariaDB puede ejecutarse con:
+
+```sql
+CREATE TABLE container_images (
+    id CHAR(36) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    image VARCHAR(255) NOT NULL,
+    description TEXT NULL,
+    icon VARCHAR(255) NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_container_images_image (image),
+    INDEX idx_container_images_active_order (is_active, sort_order)
+);
+```

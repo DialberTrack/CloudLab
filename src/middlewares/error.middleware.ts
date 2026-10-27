@@ -1,6 +1,5 @@
 import type { ErrorRequestHandler } from 'express';
-import { AppError } from '../errors/app.error.js';
-import { ValidationError } from '../errors/user.error.js';
+import { AppError, ValidationError } from '../errors/app.error.js';
 
 export const errorMiddleware: ErrorRequestHandler = (err, req, res, next) => {
     if (res.headersSent) {

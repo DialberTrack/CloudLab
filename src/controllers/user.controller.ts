@@ -3,12 +3,12 @@ import type { RequestHandler } from 'express';
 
 import crypto from 'node:crypto';
 import { env } from '../config/env.js';
+import { ValidationError } from '../errors/app.error.js';
 import { UnauthorizedError } from '../errors/auth.error.js';
 import {
     EmailAlreadyInUseError,
     InvalidPasswordError,
     UserDeletionError,
-    ValidationError,
 } from '../errors/user.error.js';
 import {
     refreshCookieOptions,
@@ -60,7 +60,7 @@ export class UserController {
             throw new ValidationError(validation.error.issues);
         }
 
-        const { name, email, password, role } = validation.data;
+        const { email, password } = validation.data;
 
         const existingUser = await UserRepository.findByEmail(email);
         if (existingUser) {
@@ -68,13 +68,9 @@ export class UserController {
         }
 
         const hashedPassword = await argon2.hash(password);
+        validation.data.password = hashedPassword;
 
-        const newUser = await UserRepository.create({
-            name,
-            email,
-            password: hashedPassword,
-            role,
-        });
+        const newUser = await UserRepository.create(validation.data);
 
         const { password: _password, ...newUserWithoutPassword } = newUser;
 

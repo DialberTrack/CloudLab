@@ -10,12 +10,12 @@ containerImagesRoutes.use(AuthMiddleware.authenticate);
 containerImagesRoutes
     .route('/')
     .get(ContainerImageController.list)
-    .post(ContainerImageController.create)
+    .post(AuthMiddleware.authorizeAdmin, ContainerImageController.create)
     .all(methodNotAllowed(['GET', 'POST']));
 
 containerImagesRoutes
     .route('/:id')
     .get(ContainerImageController.get)
-    .patch(ContainerImageController.update)
-    .delete(ContainerImageController.delete)
+    .patch(AuthMiddleware.authorizeAdmin, ContainerImageController.update)
+    .delete(AuthMiddleware.authorizeAdmin, ContainerImageController.delete)
     .all(methodNotAllowed(['GET', 'PATCH', 'DELETE']));

@@ -1,18 +1,35 @@
 import z from 'zod';
 
+// Database schema for the users table:
+// +------------+----------------------+------+-----+---------------------+-------------------------------+
+// | Field      | Type                 | Null | Key | Default             | Extra                         |
+// +------------+----------------------+------+-----+---------------------+-------------------------------+
+// | id         | uuid                 | NO   | PRI | uuid()              |                               |
+// | name       | varchar(100)         | NO   |     | NULL                |                               |
+// | email      | varchar(255)         | NO   | UNI | NULL                |                               |
+// | password   | varchar(255)         | NO   |     | NULL                |                               |
+// | role       | enum('user','admin') | NO   |     | user                |                               |
+// | created_at | timestamp            | NO   |     | current_timestamp() |                               |
+// | is_active  | tinyint(1)           | NO   |     | 1                   |                               |
+// | updated_at | timestamp            | NO   |     | current_timestamp() | on update current_timestamp() |
+// +------------+----------------------+------+-----+---------------------+-------------------------------+
+
 const userIdSchema = z.uuid({ error: 'El ID de usuario debe ser un UUID válido.' });
 const nameSchema = z
     .string({ error: 'El nombre debe ser texto.' })
     .trim()
-    .min(3, 'Se requiere un nombre de al menos 3 caracteres.');
+    .min(3, 'Se requiere un nombre de al menos 3 caracteres.')
+    .max(100, 'El nombre no puede exceder los 100 caracteres.');
 const emailSchema = z
     .string({ error: 'El correo electrónico debe ser texto.' })
     .trim()
     .toLowerCase()
+    .max(255, 'El correo electrónico no puede exceder los 255 caracteres.')
     .pipe(z.email({ error: 'El correo electrónico no es válido.' }));
 const passwordSchema = z
     .string({ error: 'La contraseña debe ser texto.' })
-    .min(8, 'La contraseña debe tener al menos 8 caracteres.');
+    .min(8, 'La contraseña debe tener al menos 8 caracteres.')
+    .max(255, 'La contraseña no puede exceder los 255 caracteres.');
 const createdAtSchema = z.date({ error: 'La fecha de creación debe ser una fecha válida.' });
 const updatedAtSchema = z.date({ error: 'La fecha de actualización debe ser una fecha válida.' });
 const roleSchema = z.enum(['admin', 'user'], {
