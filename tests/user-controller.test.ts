@@ -64,7 +64,7 @@ describe('UserController.delete', () => {
         const res = response();
 
         await expect(
-            UserController.delete(request(admin.id), res as unknown as Response, vi.fn()),
+            UserController.delete(request(admin.id), res as unknown as Response, vi.fn())
         ).rejects.toMatchObject({ statusCode: 403 });
 
         expect(mocks.getById).not.toHaveBeenCalled();
@@ -76,7 +76,7 @@ describe('UserController.delete', () => {
         const res = response();
 
         await expect(
-            UserController.delete(request(regularUser.id), res as unknown as Response, vi.fn()),
+            UserController.delete(request(regularUser.id), res as unknown as Response, vi.fn())
         ).rejects.toMatchObject({ statusCode: 403 });
 
         expect(mocks.delete).not.toHaveBeenCalled();
@@ -87,7 +87,7 @@ describe('UserController.delete', () => {
         const res = response();
 
         await expect(
-            UserController.delete(request(regularUser.id), res as unknown as Response, vi.fn()),
+            UserController.delete(request(regularUser.id), res as unknown as Response, vi.fn())
         ).rejects.toMatchObject({ statusCode: 404 });
 
         expect(mocks.delete).not.toHaveBeenCalled();
@@ -97,7 +97,7 @@ describe('UserController.delete', () => {
         const res = response();
 
         await expect(
-            UserController.delete(request('not-a-uuid'), res as unknown as Response, vi.fn()),
+            UserController.delete(request('not-a-uuid'), res as unknown as Response, vi.fn())
         ).rejects.toMatchObject({ statusCode: 400 });
 
         expect(mocks.getById).not.toHaveBeenCalled();
@@ -108,7 +108,7 @@ describe('UserController.delete', () => {
         const res = response();
 
         await expect(
-            UserController.delete(request(regularUser.id), res as unknown as Response, vi.fn()),
+            UserController.delete(request(regularUser.id), res as unknown as Response, vi.fn())
         ).rejects.toMatchObject({ statusCode: 500 });
     });
 });

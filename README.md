@@ -23,6 +23,8 @@ Crea un archivo `.env` en `backend/` (no lo subas al repositorio):
 
 ```dotenv
 NODE_ENV=development
+LOG_LEVEL=info
+LOG_FORMAT=text
 APP_HOST=localhost
 APP_PORT=8000
 DB_HOST=localhost
@@ -38,6 +40,8 @@ MAX_REFRESH_TOKENS_PER_USER=5
 
 La base de datos debe contener las tablas requeridas por la aplicación. Las variables de
 entorno se validan al iniciar; los secretos y credenciales no deben registrarse ni compartirse.
+`LOG_LEVEL` acepta `debug`, `info`, `warn` o `error`; `LOG_FORMAT` acepta `text` o `json`.
+El formato JSON facilita la integración con agregadores de logs en producción.
 
 ## Ejecución
 

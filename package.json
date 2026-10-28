@@ -1,47 +1,55 @@
 {
-  "name": "CloudLab",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "dev": "tsx --watch src/app.ts",
-    "build": "tsc",
-    "start": "node dist/app.js",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "devEngines": {
-    "packageManager": {
-      "name": "pnpm",
-      "version": "12.15.0",
-      "onFail": "download"
-    }
-  },
-  "packageManager": "pnpm@12.15.0",
-  "type": "module",
-  "devDependencies": {
-    "@types/dockerode": "^4.0.2",
-    "@types/express": "^5.0.6",
-    "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^26.6.5",
-    "tsx": "^4.23.15",
-    "typescript": "^7.0.2",
-    "vitest": "^5.0.5"
-  },
-  "dependencies": {
-    "@types/cookie-parser": "^1.4.10",
-    "argon2": "^0.45.1",
-    "cookie-parser": "^1.4.7",
-    "dockerode": "^5.0.1",
-    "dotenv": "^18.0.8",
-    "express": "^5.3.0",
-    "jsonwebtoken": "^9.0.3",
-    "lowdb": "^7.0.1",
-    "mysql2": "^3.24.6",
-    "zod": "^4.6.7"
-  }
+    "name": "CloudLab",
+    "version": "1.0.0",
+    "description": "",
+    "keywords": [],
+    "license": "ISC",
+    "author": "",
+    "type": "module",
+    "main": "index.js",
+    "scripts": {
+        "dev": "tsx --watch src/app.ts",
+        "build": "tsc",
+        "start": "node dist/app.js",
+        "typecheck": "tsc --noEmit",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "lint": "oxlint",
+        "lint:fix": "oxlint --fix",
+        "format": "oxfmt",
+        "format:check": "oxfmt --check",
+        "check": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test"
+    },
+    "dependencies": {
+        "@types/cookie-parser": "^1.4.10",
+        "argon2": "^0.45.1",
+        "cookie-parser": "^1.4.7",
+        "dockerode": "^5.0.1",
+        "dotenv": "^18.0.8",
+        "express": "^5.3.0",
+        "jsonwebtoken": "^9.0.3",
+        "lowdb": "^7.0.1",
+        "mysql2": "^3.24.6",
+        "zod": "^4.6.7"
+    },
+    "devDependencies": {
+        "@types/dockerode": "^4.0.2",
+        "@types/express": "^5.0.6",
+        "@types/jsonwebtoken": "^9.0.10",
+        "@types/node": "^26.6.5",
+        "oxfmt": "^0.74.0",
+        "oxlint": "^1.89.0",
+        "oxlint-tsgolint": "^7.0.2005",
+        "tsx": "^4.23.15",
+        "typescript": "^7.0.2",
+        "vitest": "^5.0.5"
+    },
+    "devEngines": {
+        "packageManager": {
+            "name": "pnpm",
+            "version": "12.15.0",
+            "onFail": "download"
+        }
+    },
+    "packageManager": "pnpm@12.15.0"
 }

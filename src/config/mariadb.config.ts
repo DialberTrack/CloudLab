@@ -1,4 +1,5 @@
 import mysql from 'mysql2/promise';
+import { logger } from '../utils/logger.js';
 import { env } from './env.js';
 
 const pool = mysql.createPool({
@@ -13,10 +14,10 @@ const pool = mysql.createPool({
 
 try {
     const connection = await pool.getConnection();
-    console.log('Conexión a la base de datos MariaDB establecida correctamente.');
+    logger.info('Conexión a la base de datos MariaDB establecida correctamente.');
     connection.release();
 } catch (error) {
-    console.error('❌ Error al conectar a la base de datos MariaDB:', error);
+    logger.error('Error al conectar a la base de datos MariaDB', { error });
     process.exit(1);
 }
 

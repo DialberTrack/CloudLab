@@ -1,7 +1,7 @@
 allowBuilds:
-  argon2: false
-  bcrypt: false
-  cpu-features: true
-  esbuild: false
-  protobufjs: true
-  ssh2: true
+    argon2: false
+    bcrypt: false
+    cpu-features: true
+    esbuild: false
+    protobufjs: true
+    ssh2: true

@@ -1,6 +1,5 @@
 import argon2 from 'argon2';
 import type { RequestHandler } from 'express';
-
 import crypto from 'node:crypto';
 import { env } from '../config/env.js';
 import { ValidationError } from '../errors/app.error.js';
@@ -9,6 +8,7 @@ import {
     EmailAlreadyInUseError,
     InvalidPasswordError,
     UserDeletionError,
+    UserNotFoundError,
 } from '../errors/user.error.js';
 import {
     refreshCookieOptions,
@@ -21,6 +21,7 @@ import {
     UpdateUserSchema,
     UserIdSchema,
 } from '../schemas/user.schema.js';
+import { authed } from '../types/auth-request.js';
 import { ListUtils } from '../utils/list.utils.js';
 import { TokenManager } from '../utils/token-manager.utils.js';
 
@@ -35,12 +36,12 @@ export class UserController {
      * @returns {Promise<void>} Responde con la lista y sus metadatos de paginacion.
      * @throws {AppError} Si los parametros de consulta son invalidos o falla el repositorio.
      */
-    static list: RequestHandler = async (req, res) => {
+    static list: RequestHandler = authed(async (req, res) => {
         const query = ListUtils.parseQuery(req.query);
         const users = await UserRepository.list(query);
 
         res.json(users);
-    };
+    });
 
     /**
      * Crea un usuario administrativo y almacena unicamente su contrasena hasheada.
@@ -53,7 +54,7 @@ export class UserController {
      * @throws {EmailAlreadyInUseError} Si el correo ya esta registrado.
      * @throws {AppError} Si falla el hash o la persistencia.
      */
-    static create: RequestHandler = async (req, res) => {
+    static create: RequestHandler = authed(async (req, res) => {
         const validation = CreateUserSchema.safeParse(req.body || {});
 
         if (!validation.success) {
@@ -75,7 +76,7 @@ export class UserController {
         const { password: _password, ...newUserWithoutPassword } = newUser;
 
         res.json({ user: newUserWithoutPassword });
-    };
+    });
 
     /**
      * Obtiene un usuario por su UUID sin exponer su contrasena.
@@ -87,7 +88,7 @@ export class UserController {
      * @throws {ValidationError} Si el UUID es invalido.
      * @throws {UserNotFoundError} Si el usuario no existe.
      */
-    static get: RequestHandler = async (req, res) => {
+    static get: RequestHandler = authed(async (req, res) => {
         const validation = UserIdSchema.safeParse(req.params);
         if (!validation.success) {
             throw new ValidationError(validation.error.issues);
@@ -98,7 +99,7 @@ export class UserController {
         const { password: _password, ...userWithoutPassword } = user;
 
         res.json({ user: userWithoutPassword });
-    };
+    });
 
     /**
      * Actualiza un usuario distinto del administrador autenticado.
@@ -112,7 +113,7 @@ export class UserController {
      * @throws {UserNotFoundError} Si el usuario no existe.
      * @throws {EmailAlreadyInUseError} Si el nuevo correo ya esta registrado.
      */
-    static update: RequestHandler = async (req, res) => {
+    static update: RequestHandler = authed(async (req, res) => {
         const idValidation = UserIdSchema.safeParse(req.params);
         if (!idValidation.success) {
             throw new ValidationError(idValidation.error.issues);
@@ -120,7 +121,7 @@ export class UserController {
 
         const { id } = idValidation.data;
 
-        if (req.user!.id === id) {
+        if (req.user.id === id) {
             throw new UnauthorizedError();
         }
 
@@ -144,10 +145,14 @@ export class UserController {
         }
 
         const updatedUser = await UserRepository.update(id, updates);
-        const { password: _password, ...userWithoutPassword } = updatedUser!;
+        if (!updatedUser) {
+            throw new UserNotFoundError();
+        }
+
+        const { password: _password, ...userWithoutPassword } = updatedUser;
 
         res.json({ user: userWithoutPassword });
-    };
+    });
 
     /**
      * Elimina un usuario no administrador y nunca permite autoeliminacion.
@@ -161,7 +166,7 @@ export class UserController {
      * @throws {UserNotFoundError} Si el usuario no existe.
      * @throws {UserDeletionError} Si la eliminacion no afecta ninguna fila.
      */
-    static delete: RequestHandler = async (req, res) => {
+    static delete: RequestHandler = authed(async (req, res) => {
         const validation = UserIdSchema.safeParse(req.params);
         if (!validation.success) {
             throw new ValidationError(validation.error.issues);
@@ -169,7 +174,7 @@ export class UserController {
 
         const { id } = validation.data;
 
-        if (req.user!.id === id) {
+        if (req.user.id === id) {
             throw new UnauthorizedError('No puedes eliminar tu propio usuario.');
         }
 
@@ -186,7 +191,7 @@ export class UserController {
         }
 
         res.json({ message: 'Usuario eliminado exitosamente' });
-    };
+    });
 
     /**
      * Genera una contrasena temporal para un usuario no administrador.
@@ -199,7 +204,7 @@ export class UserController {
      * @throws {UnauthorizedError} Si se intenta restablecer la propia cuenta o la de un admin.
      * @throws {UserNotFoundError} Si el usuario no existe.
      */
-    static resetPassword: RequestHandler = async (req, res) => {
+    static resetPassword: RequestHandler = authed(async (req, res) => {
         const validation = UserIdSchema.safeParse(req.params);
         if (!validation.success) {
             throw new ValidationError(validation.error.issues);
@@ -207,7 +212,7 @@ export class UserController {
 
         const { id } = validation.data;
 
-        if (req.user!.id === id) {
+        if (req.user.id === id) {
             throw new UnauthorizedError('No puedes restablecer tu propia contraseña.');
         }
 
@@ -232,7 +237,7 @@ export class UserController {
                 newPassword,
             },
         });
-    };
+    });
 
     /**
      * Cambia la contrasena del usuario autenticado y rota sus sesiones.
@@ -245,7 +250,7 @@ export class UserController {
      * @throws {InvalidPasswordError} Si la contrasena actual es incorrecta o no cambia.
      * @throws {UserNotFoundError} Si el usuario autenticado no existe.
      */
-    static changePassword: RequestHandler = async (req, res) => {
+    static changePassword: RequestHandler = authed(async (req, res) => {
         const validation = ChangePasswordSchema.safeParse(req.body || {});
 
         if (!validation.success) {
@@ -253,7 +258,7 @@ export class UserController {
         }
 
         const { current, password: newPassword } = validation.data;
-        const currentUser = await UserRepository.getById(req.user!.id);
+        const currentUser = await UserRepository.getById(req.user.id);
 
         const isCurrentPasswordValid = await argon2.verify(currentUser.password, current);
         if (!isCurrentPasswordValid) {
@@ -288,7 +293,7 @@ export class UserController {
         res.cookie('refreshToken', refreshToken, refreshCookieOptions);
 
         res.json({ message: 'Contraseña cambiada exitosamente', accessToken });
-    };
+    });
 
     /**
      * Devuelve los datos del usuario autenticado sin campos sensibles.
@@ -299,10 +304,10 @@ export class UserController {
      * @returns {Promise<void>} Responde con el perfil del usuario.
      * @throws {UserNotFoundError} Si el usuario autenticado ya no existe.
      */
-    static getMe: RequestHandler = async (req, res) => {
-        const authenticatedUser = await UserRepository.getById(req.user!.id);
+    static getMe: RequestHandler = authed(async (req, res) => {
+        const authenticatedUser = await UserRepository.getById(req.user.id);
         const { password: _password, is_active: _isActive, ...userInfo } = authenticatedUser;
 
         res.json({ user: userInfo });
-    };
+    });
 }

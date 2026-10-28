@@ -12,42 +12,42 @@ type ContainerImageRow = ContainerImage & RowDataPacket;
 
 export class MariaDBContainerImageRepository implements ContainerImageRepository {
     /**
-     * Lista imágenes activas para usuarios o todas las imágenes para administradores.
+     * Lista las imágenes activas o, si se solicita, todas las imágenes.
      *
-     * @param includeInactive Si es `true`, incluye imágenes desactivadas.
+     * @param includeInactive Si es `true`, también incluye las imágenes desactivadas.
      *
      * @returns {Promise<ContainerImage[]>} Lista de imágenes de contenedor.
      * @throws {Error} Si MariaDB rechaza la consulta.
      */
     async list(includeInactive = false): Promise<ContainerImage[]> {
-        const whereClause = includeInactive ? '' : 'WHERE is_active = 1';
-        const [containerImages] = await pool.query<ContainerImageRow[]>(
+        const activeFilter = includeInactive ? '' : 'WHERE is_active = 1';
+        const [rows] = await pool.query<ContainerImageRow[]>(
             `SELECT *
              FROM container_images
-             ${whereClause}
+             ${activeFilter}
              ORDER BY sort_order ASC, name ASC`
         );
-        return containerImages;
+        return rows;
     }
 
     /**
-     * Busca una imagen de contenedor por su ID sin lanzar cuando no existe.
+     * Busca una imagen por su ID sin lanzar un error si no existe.
      *
      * @param id UUID de la imagen de contenedor.
      * @returns {Promise<ContainerImage | null>} Imagen de contenedor encontrada o `null`.
      * @throws {Error} Si MariaDB rechaza la consulta.
      */
     async findById(id: string): Promise<ContainerImage | null> {
-        const [containerImages] = await pool.query<ContainerImageRow[]>(
+        const [rows] = await pool.query<ContainerImageRow[]>(
             'SELECT * FROM container_images WHERE id = ?',
             [id]
         );
 
-        return containerImages[0] ?? null;
+        return rows[0] ?? null;
     }
 
     /**
-     * Obtiene una imagen de contenedor por su ID, activa por defecto.
+     * Obtiene una imagen por su ID. Por defecto, solo devuelve imágenes activas.
      *
      * @param id UUID de la imagen de contenedor.
      * @param includeInactive Si es `true`, permite obtener una imagen desactivada.
@@ -65,23 +65,23 @@ export class MariaDBContainerImageRepository implements ContainerImageRepository
     }
 
     /**
-     * Busca una imagen de contenedor por su nombre sin lanzar cuando no existe.
+     * Busca una imagen por su nombre sin lanzar un error si no existe.
      *
      * @param image Nombre de la imagen de contenedor.
      * @returns {Promise<ContainerImage | null>} Imagen de contenedor encontrada o `null`.
      * @throws {Error} Si MariaDB rechaza la consulta.
      */
     async findByImage(image: string): Promise<ContainerImage | null> {
-        const [containerImages] = await pool.query<ContainerImageRow[]>(
+        const [rows] = await pool.query<ContainerImageRow[]>(
             'SELECT * FROM container_images WHERE image = ?',
             [image]
         );
 
-        return containerImages[0] ?? null;
+        return rows[0] ?? null;
     }
 
     /**
-     * Obtiene una imagen de contenedor por su nombre.
+     * Obtiene una imagen por su nombre.
      *
      * @param image Nombre de la imagen de contenedor.
      * @returns {Promise<ContainerImage>} Imagen de contenedor encontrada.
@@ -98,23 +98,23 @@ export class MariaDBContainerImageRepository implements ContainerImageRepository
     }
 
     /**
-     * Crea una nueva imagen de contenedor en la base de datos.
+     * Crea una imagen de contenedor en la base de datos.
      *
      * @param containerImage Datos de la imagen de contenedor a crear.
      * @returns {Promise<ContainerImage>} La imagen de contenedor creada.
      * @throws {Error} Si MariaDB rechaza la consulta.
      */
     async create(containerImage: CreateContainerImageInput): Promise<ContainerImage> {
-        const dataToInsert = Object.fromEntries(
+        const definedFields = Object.fromEntries(
             Object.entries(containerImage).filter(([, value]) => value !== undefined)
         );
-        await pool.query('INSERT INTO container_images SET ?', [dataToInsert]);
+        await pool.query('INSERT INTO container_images SET ?', [definedFields]);
 
-        return await this.getByImage(containerImage.image);
+        return this.getByImage(containerImage.image);
     }
 
     /**
-     * Actualiza una imagen de contenedor existente en la base de datos.
+     * Actualiza una imagen existente en la base de datos.
      *
      * @param id UUID de la imagen de contenedor a actualizar.
      * @param containerImage Datos de la imagen de contenedor a actualizar.
@@ -129,11 +129,11 @@ export class MariaDBContainerImageRepository implements ContainerImageRepository
             await pool.query('UPDATE container_images SET ? WHERE id = ?', [containerImage, id]);
         }
 
-        return await this.findById(id);
+        return this.findById(id);
     }
 
     /**
-     * Elimina una imagen de contenedor de la base de datos.
+     * Elimina una imagen de la base de datos.
      *
      * @param id UUID de la imagen de contenedor a eliminar.
      * @returns {Promise<boolean>} `true` si se eliminó, `false` si no existía.

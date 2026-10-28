@@ -33,7 +33,7 @@ export class ListUtils {
     /** Construye los metadatos de paginacion para una coleccion. */
     static pagination(
         { page, limit }: Pick<ListQuery, 'page' | 'limit'>,
-        total: number,
+        total: number
     ): Pagination {
         return {
             page,

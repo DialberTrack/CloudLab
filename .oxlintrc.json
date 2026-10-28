@@ -1,0 +1,60 @@
+{
+    "$schema": "./node_modules/oxlint/configuration_schema.json",
+    "plugins": ["typescript", "node", "import", "vitest", "unicorn", "oxc"],
+    "categories": {
+        "correctness": "error",
+        "suspicious": "warn"
+    },
+    "options": {
+        "typeAware": true
+    },
+    "rules": {
+        "no-console": "error",
+        "no-unused-vars": [
+            "warn",
+            {
+                "args": "none",
+                "varsIgnorePattern": "^_",
+                "ignoreRestSiblings": true,
+                "argsIgnorePattern": "^_"
+            }
+        ],
+        "no-duplicate-imports": "error",
+        "no-redeclare": "off",
+        "no-use-before-define": "off",
+
+        "import/no-unassigned-import": "off",
+        "require-await": "warn",
+
+        "typescript/no-non-null-assertion": "warn",
+        "typescript/no-explicit-any": "warn",
+        "typescript/no-extraneous-class": "off",
+        "typescript/no-misused-promises": "error",
+        "typescript/no-floating-promises": "error",
+        "typescript/consistent-type-imports": "error",
+        "typescript/await-thenable": "error",
+
+        "unicorn/prefer-node-protocol": "error",
+        "unicorn/no-static-only-class": "off",
+        "unicorn/require-module-specifiers": "off",
+
+        "vitest/require-mock-type-parameters": "off"
+    },
+    "overrides": [
+        {
+            "files": ["src/config/**"],
+            "rules": {
+                "unicorn/no-process-exit": "off"
+            }
+        },
+        {
+            "files": ["tests/*.test.ts"],
+            "rules": {
+                "typescript/no-explicit-any": "off",
+                "no-console": "off",
+                "typescript/no-unsafe-type-assertion": "off"
+            }
+        }
+    ],
+    "ignorePatterns": ["dist", "node_modules"]
+}

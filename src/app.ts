@@ -1,11 +1,12 @@
+import cookieParser from 'cookie-parser';
 import express from 'express';
 import { env } from './config/env.js';
-import { authRoutes } from './routes/auth.routes.js';
-import { workspaceRoutes } from './routes/workspaces.routes.js';
-import { adminRoutes } from './routes/admin.routes.js';
-import { containerImagesRoutes } from './routes/container-images.routes.js';
 import { errorMiddleware } from './middlewares/error.middleware.js';
-import cookieParser from 'cookie-parser';
+import { adminRoutes } from './routes/admin.routes.js';
+import { authRoutes } from './routes/auth.routes.js';
+import { containerImagesRoutes } from './routes/container-images.routes.js';
+import { workspaceRoutes } from './routes/workspaces.routes.js';
+import { logger } from './utils/logger.js';
 const app = express();
 
 app.disable('x-powered-by');
@@ -25,5 +26,5 @@ app.use((req, res) => {
 app.use(errorMiddleware);
 
 app.listen(env.APP_PORT, () => {
-    console.log(`Aplicación lista en http://${env.APP_HOST}:${env.APP_PORT}`);
+    logger.info(`Aplicación lista en http://${env.APP_HOST}:${env.APP_PORT}`);
 });

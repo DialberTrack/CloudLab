@@ -115,7 +115,7 @@ describe('AuthController.refresh', () => {
 
         const res = response();
         await expect(
-            AuthController.refresh(request(refreshToken), res as unknown as Response, vi.fn()),
+            AuthController.refresh(request(refreshToken), res as unknown as Response, vi.fn())
         ).rejects.toMatchObject({ statusCode: 401 });
 
         expect(mocks.revokeById).not.toHaveBeenCalled();
@@ -135,7 +135,7 @@ describe('AuthController.refresh', () => {
 
         const res = response();
         await expect(
-            AuthController.refresh(request(refreshToken), res as unknown as Response, vi.fn()),
+            AuthController.refresh(request(refreshToken), res as unknown as Response, vi.fn())
         ).rejects.toMatchObject({ statusCode: 401 });
 
         expect(mocks.revokeById).not.toHaveBeenCalled();
@@ -154,7 +154,7 @@ describe('AuthController.refresh', () => {
 
         const res = response();
         await expect(
-            AuthController.refresh(request(refreshToken), res as unknown as Response, vi.fn()),
+            AuthController.refresh(request(refreshToken), res as unknown as Response, vi.fn())
         ).rejects.toMatchObject({ statusCode: 401 });
 
         expect(mocks.revokeById).not.toHaveBeenCalled();
@@ -174,7 +174,7 @@ describe('AuthController.refresh', () => {
 
         const res = response();
         await expect(
-            AuthController.refresh(request(refreshToken), res as unknown as Response, vi.fn()),
+            AuthController.refresh(request(refreshToken), res as unknown as Response, vi.fn())
         ).rejects.toMatchObject({ statusCode: 401 });
 
         expect(mocks.create).not.toHaveBeenCalled();
@@ -193,7 +193,7 @@ describe('AuthController.refresh', () => {
 
         const res = response();
         await expect(
-            AuthController.refresh(request(refreshToken), res as unknown as Response, vi.fn()),
+            AuthController.refresh(request(refreshToken), res as unknown as Response, vi.fn())
         ).rejects.toMatchObject({ statusCode: 403 });
 
         expect(mocks.revokeAllTokensForUser).toHaveBeenCalledWith(user.id);

@@ -131,11 +131,11 @@ Todos los endpoints de esta seccion requieren Bearer token con rol `admin`.
 
 Lista usuarios sin contraseñas. Query opcional:
 
-| Parametro | Tipo | Default | Descripcion |
-|---|---|---:|---|
-| `page` | number | `1` | Pagina positiva |
-| `limit` | number | `10` | Elementos por pagina, maximo `100` |
-| `q` | string | - | Busca por nombre o email |
+| Parametro | Tipo   | Default | Descripcion                        |
+| --------- | ------ | ------: | ---------------------------------- |
+| `page`    | number |     `1` | Pagina positiva                    |
+| `limit`   | number |    `10` | Elementos por pagina, maximo `100` |
+| `q`       | string |       - | Busca por nombre o email           |
 
 **Respuesta `200`**
 
@@ -223,16 +223,16 @@ temporal se muestra una sola vez:
 
 Rutas disponibles:
 
-| Metodo | Endpoint | Proposito |
-|---|---|---|
-| `GET` | `/workspaces` | Listar workspaces |
-| `POST` | `/workspaces` | Crear workspace |
-| `GET` | `/workspaces/:id` | Consultar workspace |
-| `DELETE` | `/workspaces/:id` | Eliminar workspace |
-| `POST` | `/workspaces/:id/start` | Iniciar workspace |
-| `POST` | `/workspaces/:id/stop` | Detener workspace |
-| `POST` | `/workspaces/:id/restart` | Reiniciar workspace |
-| `GET` | `/workspaces/:id/metrics` | Consultar metricas |
+| Metodo   | Endpoint                  | Proposito           |
+| -------- | ------------------------- | ------------------- |
+| `GET`    | `/workspaces`             | Listar workspaces   |
+| `POST`   | `/workspaces`             | Crear workspace     |
+| `GET`    | `/workspaces/:id`         | Consultar workspace |
+| `DELETE` | `/workspaces/:id`         | Eliminar workspace  |
+| `POST`   | `/workspaces/:id/start`   | Iniciar workspace   |
+| `POST`   | `/workspaces/:id/stop`    | Detener workspace   |
+| `POST`   | `/workspaces/:id/restart` | Reiniciar workspace |
+| `GET`    | `/workspaces/:id/metrics` | Consultar metricas  |
 
 Estos handlers estan declarados pero actualmente son stubs sin logica de negocio ni
 respuestas implementadas. El frontend no debe asumir un contrato de respuesta hasta
@@ -247,13 +247,13 @@ Los usuarios normales reciben únicamente imágenes con `is_active = true`, que 
 opciones disponibles para crear un workspace. Los administradores reciben todas las
 imágenes, incluidas las desactivadas, para poder gestionar el catálogo.
 
-| Metodo | Endpoint | Proposito |
-|---|---|---|
-| `GET` | `/container-images` | Listar imagenes activas |
-| `POST` | `/container-images` | Crear imagen (admin) |
-| `GET` | `/container-images/:id` | Consultar imagen |
-| `PATCH` | `/container-images/:id` | Actualizar imagen (admin) |
-| `DELETE` | `/container-images/:id` | Eliminar imagen (admin) |
+| Metodo   | Endpoint                | Proposito                 |
+| -------- | ----------------------- | ------------------------- |
+| `GET`    | `/container-images`     | Listar imagenes activas   |
+| `POST`   | `/container-images`     | Crear imagen (admin)      |
+| `GET`    | `/container-images/:id` | Consultar imagen          |
+| `PATCH`  | `/container-images/:id` | Actualizar imagen (admin) |
+| `DELETE` | `/container-images/:id` | Eliminar imagen (admin)   |
 
 ### `GET /container-images`
 
@@ -332,15 +332,15 @@ afecta ninguna fila.
 
 ## Codigos HTTP frecuentes
 
-| Codigo | Significado |
-|---:|---|
-| `200` | Operacion exitosa |
-| `400` | Body, query o parametro invalido |
-| `401` | Falta autenticacion o el token no es valido |
-| `403` | Usuario autenticado sin permisos o cuenta inactiva |
-| `404` | Recurso no encontrado |
-| `409` | Conflicto, por ejemplo email duplicado |
-| `500` | Error interno o eliminacion sin filas afectadas |
+| Codigo | Significado                                        |
+| -----: | -------------------------------------------------- |
+|  `200` | Operacion exitosa                                  |
+|  `400` | Body, query o parametro invalido                   |
+|  `401` | Falta autenticacion o el token no es valido        |
+|  `403` | Usuario autenticado sin permisos o cuenta inactiva |
+|  `404` | Recurso no encontrado                              |
+|  `409` | Conflicto, por ejemplo email duplicado             |
+|  `500` | Error interno o eliminacion sin filas afectadas    |
 
 ## Ejemplo de cliente
 

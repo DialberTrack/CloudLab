@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { AuthMiddleware } from '../middlewares/auth.middleware.js';
 import { ContainerImageController } from '../controllers/container-image.controller.js';
+import { AuthMiddleware } from '../middlewares/auth.middleware.js';
 import { methodNotAllowed } from '../middlewares/method-not-allowed.middleware.js';
 
 export const containerImagesRoutes: Router = Router();

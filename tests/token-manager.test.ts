@@ -24,7 +24,7 @@ describe('TokenManager', () => {
             expect.objectContaining({
                 user_id: user.id,
                 role: user.role,
-            }),
+            })
         );
         expect(payload?.iat).toEqual(expect.any(Number));
         expect(payload?.exp).toEqual(expect.any(Number));
@@ -39,7 +39,7 @@ describe('TokenManager', () => {
             expect.objectContaining({
                 user_id: user.id,
                 jti,
-            }),
+            })
         );
         expect(payload).not.toHaveProperty('role');
         expect(payload?.iat).toEqual(expect.any(Number));
@@ -53,8 +53,8 @@ describe('TokenManager', () => {
         expect(TokenManager.verifyRefreshToken(accessToken)).toBeNull();
         expect(
             TokenManager.verifyAccessToken(
-                jwt.sign(refreshPayload as object, env.JWT_REFRESH_SECRET),
-            ),
+                jwt.sign(refreshPayload as object, env.JWT_REFRESH_SECRET)
+            )
         ).toBeNull();
     });
 
@@ -63,7 +63,7 @@ describe('TokenManager', () => {
 
         expect(TokenManager.hashToken(refreshToken)).toBe(TokenManager.hashToken(refreshToken));
         expect(TokenManager.hashToken(refreshToken)).not.toBe(
-            TokenManager.hashToken(`${refreshToken}.tampered`),
+            TokenManager.hashToken(`${refreshToken}.tampered`)
         );
     });
 });

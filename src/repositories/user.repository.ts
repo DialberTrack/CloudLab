@@ -11,9 +11,10 @@ export interface UserRepository {
     findById(id: string): Promise<User | null>;
     getById(id: string): Promise<User>;
     findByEmail(email: string): Promise<User | null>;
-    list(query: ListQuery): Promise<UserList>;
-    create(user: CreateUserInput): Promise<User>;
+    getByEmail(email: string): Promise<User>;
     update(id: string, user: Partial<User>): Promise<User | null>;
+    list({ page, limit, q }: ListQuery): Promise<UserList>;
+    create(user: CreateUserInput): Promise<User>;
     delete(id: string): Promise<boolean>;
 }
 

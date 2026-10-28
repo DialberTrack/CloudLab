@@ -1,11 +1,14 @@
-import { z } from 'zod';
 import 'dotenv/config';
+import * as z from 'zod';
+import { logger } from '../utils/logger.js';
 
 const jwtExpirationRegex = /^\d+(ms|s|m|h|d|w|y)$/;
 const jwtRegexMessage = "Formato de tiempo inválido. Ejemplos válidos: '15m', '2h', '7d'";
 
 const envSchema = z.object({
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+    LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+    LOG_FORMAT: z.enum(['text', 'json']).default('text'),
 
     APP_HOST: z.string().min(1, 'APP_HOST es requerido'),
     APP_PORT: z.coerce.number().int().min(1).max(65535).default(8000),
@@ -19,7 +22,6 @@ const envSchema = z.object({
     JWT_REFRESH_SECRET: z.string().min(1, 'JWT_REFRESH_SECRET es requerido'),
     MAX_REFRESH_TOKENS_PER_USER: z.coerce.number().int().min(1).default(5),
 
-    // Agregamos la validación con regex
     JWT_EXPIRES_IN: z.string().regex(jwtExpirationRegex, jwtRegexMessage).default('15m'),
     JWT_REFRESH_EXPIRES_IN: z.string().regex(jwtExpirationRegex, jwtRegexMessage).default('7d'),
 });
@@ -29,15 +31,26 @@ const envParsed = envSchema.safeParse(process.env);
 if (!envParsed.success) {
     const errors = z.treeifyError(envParsed.error);
 
-    console.error('❌ Error de validación en las variables de entorno:');
+    logger.error('Error de validación en las variables de entorno');
     Object.entries(errors.properties ?? {}).forEach(([key, value]) => {
-        console.error(`${key} - ${value.errors?.join(', ')}`);
+        logger.error(`${key} - ${value.errors?.join(', ')}`);
     });
     process.exit(1);
 }
 
-const [, amount, unit] = envParsed.data.JWT_REFRESH_EXPIRES_IN.match(/^(\d+)(ms|s|m|h|d|w|y)$/)!;
-const millisecondsPerUnit: Record<string, number> = {
+const refreshExpirationMatch =
+    envParsed.data.JWT_REFRESH_EXPIRES_IN.match(/^(\d+)(ms|s|m|h|d|w|y)$/);
+
+if (!refreshExpirationMatch) {
+    throw new Error(jwtRegexMessage);
+}
+
+const [, amount, unit] = refreshExpirationMatch;
+if (!amount || !unit) {
+    throw new Error(jwtRegexMessage);
+}
+
+const millisecondsByUnit: Record<string, number> = {
     ms: 1,
     s: 1_000,
     m: 60_000,
@@ -46,10 +59,15 @@ const millisecondsPerUnit: Record<string, number> = {
     w: 604_800_000,
     y: 31_536_000_000,
 };
-const JWT_REFRESH_COOKIE_MAX_AGE_MS =
-    Number(amount) * millisecondsPerUnit[unit as keyof typeof millisecondsPerUnit]!;
+
+const millisecondsPerSelectedUnit = millisecondsByUnit[unit];
+if (millisecondsPerSelectedUnit === undefined) {
+    throw new Error(jwtRegexMessage);
+}
+
+const refreshTokenDurationMs = Number(amount) * millisecondsPerSelectedUnit;
 
 export const env = {
     ...envParsed.data,
-    JWT_REFRESH_COOKIE_MAX_AGE_MS,
+    JWT_REFRESH_COOKIE_MAX_AGE_MS: refreshTokenDurationMs,
 };

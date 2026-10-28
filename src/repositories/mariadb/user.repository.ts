@@ -120,7 +120,7 @@ export class MariaDBUserRepository implements UserRepository {
             ),
         ]);
 
-        const total = Number(countResult[0][0]?.total ?? 0);
+        const total = countResult[0][0]?.total ?? 0;
         const users = usersResult[0];
 
         return {

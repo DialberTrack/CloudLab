@@ -6,9 +6,8 @@ vi.mock('../src/config/mariadb.config.js', () => ({
     default: { query: mocks.query },
 }));
 
-const { MariaDBContainerImageRepository } = await import(
-    '../src/repositories/mariadb/container-image.repository.js'
-);
+const { MariaDBContainerImageRepository } =
+    await import('../src/repositories/mariadb/container-image.repository.js');
 
 describe('MariaDBContainerImageRepository', () => {
     beforeEach(() => vi.clearAllMocks());
@@ -18,11 +17,9 @@ describe('MariaDBContainerImageRepository', () => {
 
         await new MariaDBContainerImageRepository().list(false);
 
+        expect(mocks.query).toHaveBeenCalledWith(expect.stringContaining('WHERE is_active = 1'));
         expect(mocks.query).toHaveBeenCalledWith(
-            expect.stringContaining('WHERE is_active = 1'),
-        );
-        expect(mocks.query).toHaveBeenCalledWith(
-            expect.stringContaining('ORDER BY sort_order ASC, name ASC'),
+            expect.stringContaining('ORDER BY sort_order ASC, name ASC')
         );
     });
 
@@ -32,7 +29,7 @@ describe('MariaDBContainerImageRepository', () => {
         await new MariaDBContainerImageRepository().list(true);
 
         expect(mocks.query).toHaveBeenCalledWith(
-            expect.not.stringContaining('WHERE is_active = 1'),
+            expect.not.stringContaining('WHERE is_active = 1')
         );
     });
 
@@ -41,9 +38,9 @@ describe('MariaDBContainerImageRepository', () => {
             [{ id: 'image-id', image: 'ubuntu:24.04', is_active: false }],
         ]);
 
-        await expect(new MariaDBContainerImageRepository().getById('image-id')).rejects.toMatchObject(
-            { statusCode: 404 },
-        );
+        await expect(
+            new MariaDBContainerImageRepository().getById('image-id')
+        ).rejects.toMatchObject({ statusCode: 404 });
     });
 
     it('devuelve una imagen inactiva cuando un administrador la solicita', async () => {
@@ -55,22 +52,20 @@ describe('MariaDBContainerImageRepository', () => {
         mocks.query.mockResolvedValue([[inactiveImage]]);
 
         await expect(
-            new MariaDBContainerImageRepository().getById('image-id', true),
+            new MariaDBContainerImageRepository().getById('image-id', true)
         ).resolves.toEqual(inactiveImage);
     });
 
     it('omite campos undefined al crear una imagen', async () => {
-        mocks.query
-            .mockResolvedValueOnce([{ insertId: 1 }])
-            .mockResolvedValueOnce([
-                [
-                    {
-                        id: '11111111-1111-4111-8111-111111111111',
-                        name: 'Ubuntu',
-                        image: 'ubuntu:24.04',
-                    },
-                ],
-            ]);
+        mocks.query.mockResolvedValueOnce([{ insertId: 1 }]).mockResolvedValueOnce([
+            [
+                {
+                    id: '11111111-1111-4111-8111-111111111111',
+                    name: 'Ubuntu',
+                    image: 'ubuntu:24.04',
+                },
+            ],
+        ]);
 
         await new MariaDBContainerImageRepository().create({
             name: 'Ubuntu',
@@ -81,18 +76,16 @@ describe('MariaDBContainerImageRepository', () => {
             sort_order: 0,
         });
 
-        expect(mocks.query).toHaveBeenNthCalledWith(
-            1,
-            'INSERT INTO container_images SET ?',
-            [{ name: 'Ubuntu', image: 'ubuntu:24.04', is_active: true, sort_order: 0 }],
-        );
+        expect(mocks.query).toHaveBeenNthCalledWith(1, 'INSERT INTO container_images SET ?', [
+            { name: 'Ubuntu', image: 'ubuntu:24.04', is_active: true, sort_order: 0 },
+        ]);
     });
 
     it('devuelve false cuando el borrado no afecta filas', async () => {
         mocks.query.mockResolvedValue([{ affectedRows: 0 }]);
 
         await expect(new MariaDBContainerImageRepository().delete('missing-id')).resolves.toBe(
-            false,
+            false
         );
     });
 
@@ -107,7 +100,7 @@ describe('MariaDBContainerImageRepository', () => {
         mocks.query.mockRejectedValue(databaseError);
 
         await expect(new MariaDBContainerImageRepository().delete('image-id')).rejects.toBe(
-            databaseError,
+            databaseError
         );
     });
 });

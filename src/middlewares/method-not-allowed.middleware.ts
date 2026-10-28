@@ -4,13 +4,13 @@ export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS'
 
 export const methodNotAllowed = (allowedMethods: HttpMethod[]): RequestHandler => {
     return (req, res) => {
-        const allowedMethodsString = allowedMethods.join(', ');
+        const allowedMethodsHeader = allowedMethods.join(', ');
 
         res.status(405)
-            .set('Allow', allowedMethodsString)
+            .set('Allow', allowedMethodsHeader)
             .json({
                 error: `Method ${req.method} Not Allowed.`,
-                message: `Allowed methods: ${allowedMethodsString}`,
+                message: `Allowed methods: ${allowedMethodsHeader}`,
             });
     };
 };

@@ -15,9 +15,8 @@ vi.mock('../src/repositories/container-image.repository.js', () => ({
     ContainerImageRepository: mocks,
 }));
 
-const { ContainerImageController } = await import(
-    '../src/controllers/container-image.controller.js'
-);
+const { ContainerImageController } =
+    await import('../src/controllers/container-image.controller.js');
 
 const image: ContainerImage = {
     id: '11111111-1111-4111-8111-111111111111',
@@ -51,11 +50,7 @@ describe('ContainerImageController', () => {
         it('devuelve el catálogo de imágenes activas', async () => {
             const res = response();
 
-            await ContainerImageController.list(
-                request(),
-                res as unknown as Response,
-                vi.fn(),
-            );
+            await ContainerImageController.list(request(), res as unknown as Response, vi.fn());
 
             expect(mocks.list).toHaveBeenCalledWith(false);
             expect(res.json).toHaveBeenCalledWith({ data: [image] });
@@ -73,7 +68,7 @@ describe('ContainerImageController', () => {
                     },
                 } as unknown as Request,
                 res as unknown as Response,
-                vi.fn(),
+                vi.fn()
             );
 
             expect(mocks.list).toHaveBeenCalledWith(true);
@@ -83,7 +78,7 @@ describe('ContainerImageController', () => {
             await ContainerImageController.get(
                 request({ id: image.id }),
                 response() as unknown as Response,
-                vi.fn(),
+                vi.fn()
             );
 
             expect(mocks.getById).toHaveBeenCalledWith(image.id, false);
@@ -99,7 +94,7 @@ describe('ContainerImageController', () => {
                     },
                 } as unknown as Request,
                 response() as unknown as Response,
-                vi.fn(),
+                vi.fn()
             );
 
             expect(mocks.getById).toHaveBeenCalledWith(image.id, true);
@@ -113,7 +108,7 @@ describe('ContainerImageController', () => {
             await ContainerImageController.create(
                 request({}, { name: 'Ubuntu', image: 'ubuntu:24.04' }),
                 res as unknown as Response,
-                vi.fn(),
+                vi.fn()
             );
 
             expect(mocks.findByImage).toHaveBeenCalledWith('ubuntu:24.04');
@@ -135,8 +130,8 @@ describe('ContainerImageController', () => {
                 ContainerImageController.create(
                     request({}, { name: 'Ubuntu', image: 'ubuntu:24.04' }),
                     response() as unknown as Response,
-                    vi.fn(),
-                ),
+                    vi.fn()
+                )
             ).rejects.toMatchObject({ statusCode: 409 });
 
             expect(mocks.create).not.toHaveBeenCalled();
@@ -147,8 +142,8 @@ describe('ContainerImageController', () => {
                 ContainerImageController.create(
                     request({}, { name: 'x', image: 'not valid image' }),
                     response() as unknown as Response,
-                    vi.fn(),
-                ),
+                    vi.fn()
+                )
             ).rejects.toMatchObject({ statusCode: 400 });
         });
     });
@@ -160,7 +155,7 @@ describe('ContainerImageController', () => {
             await ContainerImageController.update(
                 request({ id: image.id }, { name: 'Ubuntu LTS' }),
                 res as unknown as Response,
-                vi.fn(),
+                vi.fn()
             );
 
             expect(mocks.findByImage).not.toHaveBeenCalled();
@@ -169,14 +164,17 @@ describe('ContainerImageController', () => {
         });
 
         it('rechaza cambiar a una referencia duplicada con 409', async () => {
-            mocks.findByImage.mockResolvedValue({ ...image, id: '22222222-2222-4222-8222-222222222222' });
+            mocks.findByImage.mockResolvedValue({
+                ...image,
+                id: '22222222-2222-4222-8222-222222222222',
+            });
 
             await expect(
                 ContainerImageController.update(
                     request({ id: image.id }, { image: 'node:22' }),
                     response() as unknown as Response,
-                    vi.fn(),
-                ),
+                    vi.fn()
+                )
             ).rejects.toMatchObject({ statusCode: 409 });
 
             expect(mocks.update).not.toHaveBeenCalled();
@@ -187,8 +185,8 @@ describe('ContainerImageController', () => {
                 ContainerImageController.update(
                     request({ id: 'invalid' }, { name: 'Ubuntu LTS' }),
                     response() as unknown as Response,
-                    vi.fn(),
-                ),
+                    vi.fn()
+                )
             ).rejects.toMatchObject({ statusCode: 400 });
         });
     });
@@ -201,8 +199,8 @@ describe('ContainerImageController', () => {
                 ContainerImageController.get(
                     request({ id: image.id }),
                     response() as unknown as Response,
-                    vi.fn(),
-                ),
+                    vi.fn()
+                )
             ).rejects.toMatchObject({ statusCode: 404 });
         });
 
@@ -213,8 +211,8 @@ describe('ContainerImageController', () => {
                 ContainerImageController.delete(
                     request({ id: image.id }),
                     response() as unknown as Response,
-                    vi.fn(),
-                ),
+                    vi.fn()
+                )
             ).rejects.toMatchObject({ statusCode: 500 });
         });
 
@@ -224,7 +222,7 @@ describe('ContainerImageController', () => {
             await ContainerImageController.delete(
                 request({ id: image.id }),
                 res as unknown as Response,
-                vi.fn(),
+                vi.fn()
             );
 
             expect(mocks.delete).toHaveBeenCalledWith(image.id);

@@ -94,8 +94,9 @@ expect(res.cookie).toHaveBeenCalledOnce();
 Para errores async:
 
 ```ts
-await expect(AuthController.refresh(req, res as never, vi.fn()))
-    .rejects.toMatchObject({ statusCode: 401 });
+await expect(AuthController.refresh(req, res as never, vi.fn())).rejects.toMatchObject({
+    statusCode: 401,
+});
 ```
 
 ## Qué probar en autenticación
