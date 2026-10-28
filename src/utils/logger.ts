@@ -1,3 +1,5 @@
+import { styleText } from 'node:util';
+
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 type LogFormat = 'text' | 'json';
 type LogContext = Record<string, unknown>;
@@ -15,6 +17,13 @@ const configuredLevel = process.env.LOG_LEVEL as LogLevel | undefined;
 const configuredFormat = process.env.LOG_FORMAT as LogFormat | undefined;
 const minimumLevel = configuredLevel && configuredLevel in levels ? configuredLevel : 'info';
 const format = configuredFormat === 'json' ? configuredFormat : 'text';
+const levelStyles: Record<LogLevel, Parameters<typeof styleText>[0]> = {
+    debug: 'gray',
+    info: 'green',
+    warn: 'yellow',
+    error: 'red',
+};
+const timestampStyle: Parameters<typeof styleText>[0] = 'yellow';
 
 const serializeContext = (context: LogContext | undefined): string => {
     if (!context || Object.keys(context).length === 0) {
@@ -48,7 +57,7 @@ const write = (level: LogLevel, message: string, context?: LogContext): void => 
                           ? { name: value.name, message: value.message, stack: value.stack }
                           : value
               )
-            : `[${timestamp}] ${level.toUpperCase()} ${message}${serializeContext(context)}`;
+            : `${styleText(timestampStyle, `[${timestamp}]`)} ${styleText(levelStyles[level], level.toUpperCase())} ${message} ${serializeContext(context)}`;
 
     console[level](output);
 };
