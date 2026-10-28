@@ -57,7 +57,7 @@ const write = (level: LogLevel, message: string, context?: LogContext): void => 
                           ? { name: value.name, message: value.message, stack: value.stack }
                           : value
               )
-            : `${styleText(timestampStyle, `[${timestamp}]`)} ${styleText(levelStyles[level], level.toUpperCase())} ${message} ${serializeContext(context)}`;
+            : `${styleText(timestampStyle, `[${timestamp}]`)} ${styleText(levelStyles[level], level.toUpperCase())} ${message}${serializeContext(context)}`;
 
     console[level](output);
 };

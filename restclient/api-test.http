@@ -19,7 +19,7 @@ Content-Type: application/json
 
 {
     "email": "test2@cloudlab.local",
-    "password": "7ebc16a695d9"
+    "password": "password123"
 }
 
 ### ---------------------------------------------------------------------------
@@ -129,11 +129,16 @@ Content-Type: application/json
 GET http://192.168.1.10/api/workspaces/
 Authorization: Bearer {{access_token}}
 
+### List all workspaces
+GET http://192.168.1.10/api/admin/workspaces/
+Authorization: Bearer {{access_token}}
+
 ### Create workspace
 POST http://192.168.1.10/api/workspaces/
 Authorization: Bearer {{access_token}}
 Content-Type: application/json
 
 {
-    "catalog_id": "7205ac80-57f2-4a4a-ab32-3d9edcaaaa02"
+    "name": "My Workspace",
+    "container_image_id": "fa67a9d1-d1ba-11f1-be50-f44d30e355a1"
 }

@@ -43,8 +43,8 @@ const user: User = {
     email: 'refresh@example.com',
     password: 'not-used-in-this-test',
     role: 'user',
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    created_at: new Date(),
+    updated_at: new Date(),
     is_active: true,
 };
 

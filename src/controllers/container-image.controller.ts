@@ -10,6 +10,7 @@ import {
     CreateContainerImageSchema,
     UpdateContainerImageSchema,
 } from '../schemas/container-image.schema.js';
+import { authed } from '../types/auth-request.js';
 
 export class ContainerImageController {
     /**
@@ -21,11 +22,11 @@ export class ContainerImageController {
      * @returns {Promise<void>} Responde con la lista de imágenes de contenedor.
      * @throws {AppError} Si falla el repositorio.
      */
-    static list: RequestHandler = async (req, res) => {
-        const includeInactive = req.user?.role === 'admin';
+    static list: RequestHandler = authed(async (req, res) => {
+        const includeInactive = req.user.role === 'admin';
         const containerImages = await ContainerImageRepository.list(includeInactive);
         res.json({ data: containerImages });
-    };
+    });
 
     /**
      * Crea una nueva imagen de contenedor.
@@ -38,7 +39,7 @@ export class ContainerImageController {
      * @throws {ImageAlreadyExistsError} Si la imagen ya existe.
      * @throws {AppError} Si falla el repositorio.
      */
-    static create: RequestHandler = async (req, res) => {
+    static create: RequestHandler = authed(async (req, res) => {
         const validation = CreateContainerImageSchema.safeParse(req.body);
         if (!validation.success) {
             throw new ValidationError(validation.error.issues);
@@ -52,7 +53,7 @@ export class ContainerImageController {
 
         const containerImage = await ContainerImageRepository.create(validation.data);
         res.json({ data: containerImage });
-    };
+    });
 
     /**
      * Obtiene una imagen por su identificador.
@@ -64,17 +65,17 @@ export class ContainerImageController {
      * @throws {ValidationError} Si el ID no es válido.
      * @throws {ImageNotFoundError} Si la imagen no existe.
      */
-    static get: RequestHandler = async (req, res) => {
+    static get: RequestHandler = authed(async (req, res) => {
         const validation = ContainerImageIdSchema.safeParse(req.params);
         if (!validation.success) {
             throw new ValidationError(validation.error.issues);
         }
 
         const { id } = validation.data;
-        const includeInactive = req.user?.role === 'admin';
+        const includeInactive = req.user.role === 'admin';
         const containerImage = await ContainerImageRepository.getById(id, includeInactive);
         res.json({ data: containerImage });
-    };
+    });
 
     /** Actualiza una imagen registrada.
      *
@@ -85,7 +86,7 @@ export class ContainerImageController {
      * @throws {ValidationError} Si los datos no cumplen el esquema.
      * @throws {ImageNotFoundError} Si la imagen no existe.
      */
-    static update: RequestHandler = async (req, res) => {
+    static update: RequestHandler = authed(async (req, res) => {
         const idValidation = ContainerImageIdSchema.safeParse(req.params);
         if (!idValidation.success) {
             throw new ValidationError(idValidation.error.issues);
@@ -114,7 +115,7 @@ export class ContainerImageController {
         );
 
         res.json({ data: updatedContainerImage });
-    };
+    });
 
     /**
      * Elimina una imagen de contenedor.
@@ -126,7 +127,7 @@ export class ContainerImageController {
      * @throws {ValidationError} Si el ID no es válido.
      * @throws {ContainerImageDeletionError} Si no se puede eliminar la imagen.
      */
-    static delete: RequestHandler = async (req, res) => {
+    static delete: RequestHandler = authed(async (req, res) => {
         const validation = ContainerImageIdSchema.safeParse(req.params);
         if (!validation.success) {
             throw new ValidationError(validation.error.issues);
@@ -143,5 +144,5 @@ export class ContainerImageController {
         }
 
         res.json({ message: 'Imagen de contenedor eliminada correctamente.' });
-    };
+    });
 }

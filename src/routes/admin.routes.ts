@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { UserController } from '../controllers/user.controller.js';
+import { WorkspaceController } from '../controllers/workspace.controller.js';
 import { AuthMiddleware } from '../middlewares/auth.middleware.js';
 import { methodNotAllowed } from '../middlewares/method-not-allowed.middleware.js';
 
@@ -24,3 +25,8 @@ adminRoutes
     .route('/users/:id/reset-password')
     .post(UserController.resetPassword)
     .all(methodNotAllowed(['POST']));
+
+adminRoutes
+    .route('/workspaces')
+    .get(WorkspaceController.listAll)
+    .all(methodNotAllowed(['GET']));

@@ -1,8 +1,11 @@
 import { Router } from 'express';
 import { WorkspaceController } from '../controllers/workspace.controller.js';
+import { AuthMiddleware } from '../middlewares/auth.middleware.js';
 import { methodNotAllowed } from '../middlewares/method-not-allowed.middleware.js';
 
 export const workspaceRoutes: Router = Router();
+
+workspaceRoutes.use(AuthMiddleware.authenticate);
 
 workspaceRoutes
     .route('/')

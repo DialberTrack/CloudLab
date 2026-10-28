@@ -30,8 +30,19 @@ const image: ContainerImage = {
     updated_at: new Date(),
 };
 
-const request = (params: Record<string, string> = {}, body: unknown = {}): Request =>
-    ({ params, body }) as unknown as Request;
+const request = (
+    params: Record<string, string> = {},
+    body: unknown = {},
+    role: 'admin' | 'user' = 'user'
+): Request =>
+    ({
+        params,
+        body,
+        user: {
+            id: '33333333-3333-4333-8333-333333333333',
+            role,
+        },
+    }) as unknown as Request;
 
 const response = () => ({ json: vi.fn() });
 
@@ -60,13 +71,7 @@ describe('ContainerImageController', () => {
             const res = response();
 
             await ContainerImageController.list(
-                {
-                    ...request(),
-                    user: {
-                        id: '33333333-3333-4333-8333-333333333333',
-                        role: 'admin',
-                    },
-                } as unknown as Request,
+                request({}, {}, 'admin'),
                 res as unknown as Response,
                 vi.fn()
             );
@@ -86,13 +91,7 @@ describe('ContainerImageController', () => {
 
         it('solicita imágenes inactivas cuando un administrador consulta por ID', async () => {
             await ContainerImageController.get(
-                {
-                    ...request({ id: image.id }),
-                    user: {
-                        id: '33333333-3333-4333-8333-333333333333',
-                        role: 'admin',
-                    },
-                } as unknown as Request,
+                request({ id: image.id }, {}, 'admin'),
                 response() as unknown as Response,
                 vi.fn()
             );

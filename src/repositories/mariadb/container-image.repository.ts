@@ -105,10 +105,7 @@ export class MariaDBContainerImageRepository implements ContainerImageRepository
      * @throws {Error} Si MariaDB rechaza la consulta.
      */
     async create(containerImage: CreateContainerImageInput): Promise<ContainerImage> {
-        const definedFields = Object.fromEntries(
-            Object.entries(containerImage).filter(([, value]) => value !== undefined)
-        );
-        await pool.query('INSERT INTO container_images SET ?', [definedFields]);
+        await pool.query('INSERT INTO container_images SET ?', [containerImage]);
 
         return this.getByImage(containerImage.image);
     }

@@ -14,7 +14,7 @@ import * as z from 'zod';
 // | updated_at | timestamp            | NO   |     | current_timestamp() | on update current_timestamp() |
 // +------------+----------------------+------+-----+---------------------+-------------------------------+
 
-const userIdSchema = z.uuid({ error: 'El ID del usuario debe ser un UUID válido.' });
+const idSchema = z.uuid({ error: 'El ID del usuario debe ser un UUID válido.' });
 const nameSchema = z
     .string({ error: 'El nombre debe ser una cadena de texto.' })
     .trim()
@@ -30,21 +30,21 @@ const passwordSchema = z
     .string({ error: 'La contraseña debe ser una cadena de texto.' })
     .min(8, 'La contraseña debe tener al menos 8 caracteres.')
     .max(255, 'La contraseña no puede exceder los 255 caracteres.');
-const createdAtSchema = z.date({ error: 'La fecha de creación debe ser una fecha válida.' });
-const updatedAtSchema = z.date({ error: 'La fecha de actualización debe ser una fecha válida.' });
 const roleSchema = z.enum(['admin', 'user'], {
     error: 'El rol debe ser «admin» o «user».',
 });
+const createdAtSchema = z.date({ error: 'La fecha de creación debe ser una fecha válida.' });
+const updatedAtSchema = z.date({ error: 'La fecha de actualización debe ser una fecha válida.' });
 const activeSchema = z.boolean({ error: 'El estado activo debe ser un valor booleano.' });
 
 const userSchema = z.object({
-    id: userIdSchema,
+    id: idSchema,
     name: nameSchema,
     email: emailSchema,
     password: passwordSchema,
     role: roleSchema,
-    createdAt: createdAtSchema,
-    updatedAt: updatedAtSchema,
+    created_at: createdAtSchema,
+    updated_at: updatedAtSchema,
     is_active: activeSchema,
 });
 
@@ -76,7 +76,7 @@ export const UpdateUserSchema = userSchema
     });
 
 export const UserIdSchema = z.object({
-    id: userIdSchema,
+    id: idSchema,
 });
 
 export type User = z.infer<typeof userSchema>;

@@ -18,62 +18,53 @@ import * as z from 'zod';
 const dockerImagePattern =
     /^(?:([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+)(?::(\d+))?\/)?((?:[a-zA-Z0-9_-]*\/)*?)([a-zA-Z0-9_-]+)(?::([\w.-]+))?$/;
 
-const idSchema = z.uuid('El ID de la imagen de contenedor debe ser un UUID válido.');
-
-const requiredNameSchema = z
+const idSchema = z.uuid({ error: 'El ID de la imagen de contenedor debe ser un UUID válido.' });
+const nameSchema = z
     .string({ message: 'El nombre debe ser texto.' })
     .trim()
     .min(3, 'Se requiere un nombre de al menos 3 caracteres.')
     .max(100, 'El nombre no puede exceder los 100 caracteres.');
-
-const dockerImageSchema = z
+const imageSchema = z
     .string({ message: 'La imagen debe ser texto.' })
     .trim()
     .min(1, 'Se requiere una imagen de al menos 1 caracter.')
     .max(255, 'La imagen no puede exceder los 255 caracteres.')
     .toLowerCase()
     .regex(dockerImagePattern, 'La imagen no tiene un formato válido.');
-
-// Los campos opcionales de la base de datos aceptan tanto null como undefined.
-const optionalDescriptionSchema = z
+const descriptionSchema = z
     .string({ message: 'La descripción debe ser texto.' })
     .trim()
     .max(65535, 'La descripción no puede exceder los 65535 caracteres.')
     .nullish();
-
-const optionalIconSchema = z
+const iconSchema = z
     .string({ message: 'El icono debe ser texto.' })
     .trim()
     .max(255, 'El icono no puede exceder los 255 caracteres.')
     .nullish();
-
-const activeStatusSchema = z.boolean({
+const isActiveSchema = z.boolean({
     message: 'El estado activo debe ser un valor booleano.',
 });
-
 const sortOrderSchema = z
     .number({ message: 'El orden de clasificación debe ser un número.' })
     .int('El orden de clasificación debe ser un número entero.')
     .min(0, 'El orden de clasificación no puede ser negativo.');
-
-const creationDateSchema = z.date({
+const createdAtSchema = z.date({
     message: 'La fecha de creación debe ser una fecha válida.',
 });
-
-const updateDateSchema = z.date({
+const updatedAtSchema = z.date({
     message: 'La fecha de actualización debe ser una fecha válida.',
 });
 
-export const ContainerImageSchema = z.object({
+const ContainerImageSchema = z.object({
     id: idSchema,
-    name: requiredNameSchema,
-    image: dockerImageSchema,
-    description: optionalDescriptionSchema,
-    icon: optionalIconSchema,
-    is_active: activeStatusSchema,
+    name: nameSchema,
+    image: imageSchema,
+    description: descriptionSchema,
+    icon: iconSchema,
+    is_active: isActiveSchema,
     sort_order: sortOrderSchema,
-    created_at: creationDateSchema,
-    updated_at: updateDateSchema,
+    created_at: createdAtSchema,
+    updated_at: updatedAtSchema,
 });
 
 export const CreateContainerImageSchema = ContainerImageSchema.pick({
@@ -83,7 +74,7 @@ export const CreateContainerImageSchema = ContainerImageSchema.pick({
     description: true,
 }).extend({
     sort_order: sortOrderSchema.default(0),
-    is_active: activeStatusSchema.default(true),
+    is_active: isActiveSchema.default(true),
 });
 
 export const UpdateContainerImageSchema = ContainerImageSchema.pick({
