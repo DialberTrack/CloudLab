@@ -8,6 +8,9 @@ const mocks = vi.hoisted(() => ({
     deleteWorkspace: vi.fn(),
     createContainer: vi.fn(),
     startContainer: vi.fn(),
+    stopContainer: vi.fn(),
+    restartContainer: vi.fn(),
+    getStats: vi.fn(),
     removeContainer: vi.fn(),
     loggerError: vi.fn(),
 }));
@@ -77,12 +80,65 @@ describe('WorkspaceService', () => {
                 name: 'Workspace de prueba',
                 user_id: '22222222-2222-4222-8222-222222222222',
             })
-        ).rejects.toMatchObject({ statusCode: 500 });
+        ).rejects.toMatchObject({
+            statusCode: 503,
+            message: 'No se pudo crear el workspace en este momento.',
+        });
 
         expect(mocks.removeContainer).toHaveBeenCalledWith('container-id');
         expect(mocks.updateWorkspace).toHaveBeenLastCalledWith(expect.any(String), {
             status: 'error',
-            error_message: 'No se pudo crear el contenedor del workspace.',
+            error_message: 'Docker no disponible',
+        });
+    });
+
+    it('mantiene el mensaje cuando la imagen no está disponible en Docker', async () => {
+        const { ImageNotFoundError } = await import('../src/errors/docker.error.js');
+        mocks.createContainer.mockRejectedValue(new ImageNotFoundError('ubuntu:24.04'));
+
+        await expect(
+            WorkspaceService.create({
+                container_image_id: '11111111-1111-4111-8111-111111111111',
+                name: 'Workspace de prueba',
+                user_id: '22222222-2222-4222-8222-222222222222',
+            })
+        ).rejects.toMatchObject({
+            statusCode: 422,
+            message: "La imagen de contenedor 'ubuntu:24.04' no está disponible en Docker.",
+        });
+    });
+
+    it('informa que el workspace no está disponible cuando el repositorio no lo encuentra', async () => {
+        const { WorkspaceNotFoundError } = await import('../src/errors/workspace.error.js');
+        mocks.getWorkspaceById.mockRejectedValue(new WorkspaceNotFoundError());
+
+        await expect(WorkspaceService.delete('missing-workspace', 'user-id')).rejects.toMatchObject(
+            {
+                statusCode: 404,
+                message: 'El workspace solicitado no está disponible.',
+            }
+        );
+    });
+
+    it('informa que el contenedor no está disponible para iniciar un workspace incompleto', async () => {
+        mocks.getWorkspaceById.mockResolvedValue({
+            id: 'workspace-id',
+            container_id: null,
+        });
+
+        await expect(WorkspaceService.start('workspace-id', 'user-id')).rejects.toMatchObject({
+            statusCode: 409,
+            message: 'El workspace no tiene un contenedor disponible.',
+        });
+    });
+
+    it('informa que el contenedor no está disponible si fue eliminado externamente', async () => {
+        const { DockerContainerNotFoundError } = await import('../src/errors/docker.error.js');
+        mocks.startContainer.mockRejectedValue(new DockerContainerNotFoundError());
+
+        await expect(WorkspaceService.start('workspace-id', 'user-id')).rejects.toMatchObject({
+            statusCode: 409,
+            message: 'El contenedor del workspace no está disponible.',
         });
     });
 });

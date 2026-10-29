@@ -16,11 +16,13 @@ export const errorMiddleware: ErrorRequestHandler = (err, req, res, next) => {
     }
 
     if (err instanceof ValidationError) {
-        return res.status(err.statusCode).json({ error: err.message, issues: err.issues });
+        return res
+            .status(err.statusCode)
+            .json({ error: err.message, code: err.code, issues: err.issues });
     }
 
     if (err instanceof AppError) {
-        return res.status(err.statusCode).json({ error: err.message });
+        return res.status(err.statusCode).json({ error: err.message, code: err.code });
     }
 
     logger.error('Error no controlado en la solicitud', { error: err });

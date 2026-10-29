@@ -1,59 +1,44 @@
-# Pruebas del backend con Vitest
+# Pruebas del backend
 
-## Ejecutar las pruebas
+Las pruebas usan Vitest y deben poder ejecutarse sin MariaDB, Docker ni red.
+Cada archivo prueba una unidad o una funcionalidad relacionada.
+
+## Ejecutar
 
 Desde `backend/`:
 
 ```bash
 pnpm test
-```
-
-Para ejecutar Vitest en modo observación:
-
-```bash
-pnpm run test:watch
-```
-
-Para ejecutar un archivo concreto:
-
-```bash
 pnpm exec vitest run tests/auth-refresh.test.ts
-```
-
-Para ejecutar una prueba por nombre:
-
-```bash
 pnpm exec vitest run tests/auth-refresh.test.ts -t "rota un token de actualización válido"
+pnpm run test:watch
+pnpm typecheck
 ```
 
-## Estructura recomendada
+## Convenciones
 
-Cada archivo debe probar una unidad concreta:
+- Usa `describe` para agrupar y `it` para expresar comportamiento observable.
+- Mockea repositorios con `vi.hoisted` y `vi.mock` antes de importar el módulo bajo
+  prueba.
+- Limpia las llamadas con `vi.clearAllMocks()` en `beforeEach`.
+- No abras puertos ni dependas de la hora, la red o una base de datos real.
+- Los nombres y mensajes de prueba se escriben en español.
+- Comprueba respuestas completas, incluidos códigos HTTP, cookies y atributos de
+  seguridad; no verifiques solamente que exista `Set-Cookie`.
 
-- `token-manager.test.ts`: firma, validación y forma del JWT.
-- `auth-refresh.test.ts`: rotación, cookies, revocación y validación contra la base de datos.
-- `user-controller.test.ts`: reglas administrativas de eliminación y códigos de error.
-- `user-repository.test.ts`: eliminación y manejo de `affectedRows` en MariaDB.
-- `container-image-controller.test.ts`: catálogo, validación, duplicados y permisos de negocio.
-- `container-image-repository.test.ts`: consultas, defaults y eliminación de imágenes.
-- `feature-name.test.ts`: una funcionalidad adicional.
+## Cobertura actual
 
-Usa `describe` para agrupar la funcionalidad e `it` para expresar un comportamiento observable:
+- `token-manager.test.ts`: firma, validación y forma de JWT.
+- `auth-refresh.test.ts`: rotación, cookies, revocación y persistencia.
+- `user-controller.test.ts`: permisos y respuestas de administración.
+- `user-repository.test.ts`: persistencia y filas afectadas.
+- `container-image-controller.test.ts`: catálogo, validación y permisos.
+- `container-image-repository.test.ts`: consultas, valores predeterminados y borrado.
+- `workspace-service.test.ts`: creación y operaciones del ciclo de vida.
+- `error-middleware.test.ts`: formato seguro y códigos de errores HTTP.
+- `logger.test.ts`: niveles y formatos de logging.
 
-```ts
-import { describe, expect, it } from 'vitest';
-
-describe('Mi funcionalidad', () => {
-    it('rechaza una entrada inválida', () => {
-        expect(() => validarEntrada('')).toThrow();
-    });
-});
-```
-
-## Mocking de repositorios
-
-Las pruebas unitarias no deben requerir MariaDB. Usa `vi.mock` para reemplazar repositorios
-antes de importar el módulo que los consume:
+## Ejemplo de mock
 
 ```ts
 const mocks = vi.hoisted(() => ({
@@ -65,59 +50,13 @@ vi.mock('../src/repositories/user.repository.js', () => ({
         findById: mocks.findById,
     },
 }));
-```
 
-Después configura el resultado en cada prueba:
-
-```ts
 mocks.findById.mockResolvedValue(usuario);
 ```
 
-Restablece llamadas entre pruebas con `vi.clearAllMocks()` en `beforeEach`.
+## Autenticación
 
-## Probar handlers de Express
-
-No es necesario abrir un puerto. Crea objetos mínimos para `Request` y `Response` y usa
-spies para verificar cookies y respuestas:
-
-```ts
-const res = {
-    cookie: vi.fn(),
-    clearCookie: vi.fn(),
-    json: vi.fn(),
-};
-
-await AuthController.refresh(req, res as never, vi.fn());
-expect(res.cookie).toHaveBeenCalledOnce();
-```
-
-Para errores async:
-
-```ts
-await expect(AuthController.refresh(req, res as never, vi.fn())).rejects.toMatchObject({
-    statusCode: 401,
-});
-```
-
-## Qué probar en autenticación
-
-Como mínimo, agrega casos para:
-
-1. Login correcto: crea cookie HTTP-only y persiste el hash, nunca el token plano.
-2. Credenciales incorrectas: responde error sin crear sesión.
-3. Refresh sin cookie: `401`.
-4. Refresh firmado con secreto incorrecto o manipulado: `401`.
-5. `jti` inexistente, hash distinto o usuario distinto: `401`.
-6. Token revocado reutilizado: revoca todos los tokens del usuario y devuelve `403`.
-7. Usuario inactivo: no recibe nuevos tokens.
-8. Refresh válido: revoca el anterior, crea uno nuevo y reemplaza la cookie.
-9. Logout: revoca el `jti` y limpia la cookie.
-10. Cookie en producción: `secure`, `httpOnly`, `sameSite=strict` y `path` correctos.
-
-## Reglas para no generar falsos positivos
-
-- No compares solamente que exista `Set-Cookie`; verifica sus atributos.
-- No uses el token plano como valor persistido en la base de datos.
-- Usa fechas futuras y pasadas explícitas para probar expiración.
-- Aísla cada prueba de la base de datos y de la hora del sistema cuando sea necesario.
-- Ejecuta `pnpm run typecheck` además de `pnpm test`.
+Como mínimo, cubre login correcto e incorrecto, refresh sin cookie, token
+manipulado o revocado, usuario inactivo, rotación válida, logout y atributos de
+cookie en producción (`secure`, `httpOnly`, `sameSite` y `path`). Nunca persistas
+ni compares el token plano cuando el comportamiento requiere un hash.

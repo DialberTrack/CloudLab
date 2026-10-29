@@ -1,7 +1,7 @@
 import { AppError } from './app.error.js';
 
 export class ContainerImageNotFoundError extends AppError {
-    constructor(message: string = 'Imagen de contenedor no encontrada') {
+    constructor(message: string = 'La imagen de contenedor solicitada no está disponible.') {
         super(message, 404);
     }
 }

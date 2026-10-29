@@ -1,144 +1,395 @@
+@base_url = http://localhost:8000/api
+@admin_email = admin@cloudlab.local
+@admin_password = password123
+@test_user_email = api-test-ae98e967-eb7b-4594-b35a-2edd6ef6d549@cloudlab.local
+@test_user_email_uuid_variable = api-test-{{$guid}}@cloudlab.local
+@test_user_password = password123
+
+# Ejecutar las solicitudes de arriba hacia abajo. REST Client conserva la cookie
+# refreshToken del host y las variables @name permiten reutilizar IDs y tokens.
+# La creación de workspaces requiere que Docker esté disponible para la API.
+
 # =============================================================================
-# AUTHENTICATION
+# AUTENTICACIÓN
 # =============================================================================
 
-### Login as admin
-# @name loginRequest
-POST http://192.168.1.10/api/auth/login
+### Login válido de administrador: guarda accessToken y refreshToken
+# @name adminLogin
+POST {{base_url}}/auth/login
 Content-Type: application/json
 
 {
-    "email": "admin@cloudlab.local",
-    "password": "password123"
+    "email": "{{admin_email}}",
+    "password": "{{admin_password}}"
 }
+
 ###
-### Login as user
-# @name loginRequest
-POST http://192.168.1.10/api/auth/login
+@admin_token_login = {{adminLogin.response.body.$.accessToken}}
+
+### Perfil del administrador autenticado
+GET {{base_url}}/auth/me
+Authorization: Bearer {{admin_token_login}}
+
+### Login inválido: credenciales incorrectas (401)
+POST {{base_url}}/auth/login
 Content-Type: application/json
 
 {
-    "email": "test2@cloudlab.local",
-    "password": "password123"
+    "email": "{{admin_email}}",
+    "password": "contraseña-incorrecta"
 }
 
-### ---------------------------------------------------------------------------
-@access_token = {{loginRequest.response.body.$.accessToken}}
-
-### ---------------------------------------------------------------------------
-POST http://192.168.1.10/api/auth/logout
-
-### ---------------------------------------------------------------------------
-POST http://192.168.1.10/api/auth/refresh
-Content-Type: application/json
-
-### ---------------------------------------------------------------------------
-GET http://192.168.1.10/api/auth/me
-Authorization: Bearer {{access_token}}
-
-# -----------------------------------------------------------------------------
-# ADMIN USERS
-# -----------------------------------------------------------------------------
-
-### Change password
-POST http://192.168.1.10/api/auth/change-password
-Authorization: Bearer {{access_token}}
+### Login inválido: body que no cumple el esquema (400)
+POST {{base_url}}/auth/login
 Content-Type: application/json
 
 {
-    "current": "7ebc16a695d9",
-    "password": "password123"
+    "email": "no-es-un-correo",
+    "password": "corta"
 }
 
-### List users
-GET http://192.168.1.10/api/admin/users
-Authorization: Bearer {{access_token}}
-
-### Create user
-POST http://192.168.1.10/api/admin/users
+### Refresh válido: rota la cookie y devuelve un access token nuevo
+# @name adminRefresh
+POST {{base_url}}/auth/refresh
 Content-Type: application/json
-Authorization: Bearer {{access_token}}
+
+{}
+
+###
+@admin_token_refreshed = {{adminRefresh.response.body.$.accessToken}}
+
+### Logout válido: revoca y limpia refreshToken
+POST {{base_url}}/auth/logout
+
+### Refresh sin cookie: debe responder 401 después del logout
+POST {{base_url}}/auth/refresh
+
+### Login de administrador para continuar las pruebas protegidas
+# @name adminLoginAgain
+POST {{base_url}}/auth/login
+Content-Type: application/json
 
 {
-    "email": "test3@cloudlab.local",
-    "name": "Test",
-    "password": "password123"
+    "email": "{{admin_email}}",
+    "password": "{{admin_password}}"
 }
 
-### Get user
-GET http://192.168.1.10/api/admin/users/e14bdacb-d1af-11f1-be50-f44d30e355a1
-Authorization: Bearer {{access_token}}
+###
+@admin_token_login_again = {{adminLoginAgain.response.body.$.accessToken}}
 
-### Update user
-PATCH http://192.168.1.10/api/admin/users/8e0ff706-d17f-11f1-be50-f44d30e355a1
+### Endpoint protegido sin Authorization (401)
+GET {{base_url}}/auth/me
+
+### Authorization con token inválido (401)
+GET {{base_url}}/auth/me
+Authorization: Bearer token-invalido
+
+# =============================================================================
+# ADMINISTRACIÓN DE USUARIOS
+# =============================================================================
+
+### Listar usuarios, primera página y búsqueda
+# @name listUsers
+GET {{base_url}}/admin/users?page=1&limit=10&q=api-test
+Authorization: Bearer {{admin_token_login_again}}
+
+### Listar usuarios con límite mayor al permitido (se limita a 100)
+GET {{base_url}}/admin/users?page=1&limit=100
+Authorization: Bearer {{admin_token_login_again}}
+
+### Crear usuario de prueba con correo dinámico
+# @name createUser
+POST {{base_url}}/admin/users
+Authorization: Bearer {{admin_token_login_again}}
 Content-Type: application/json
-Authorization: Bearer {{access_token}}
 
 {
+    "name": "Usuario API Test",
+    "email": "{{test_user_email}}",
+    "password": "{{test_user_password}}",
     "role": "user"
 }
 
-### Delete user
-DELETE http://192.168.1.10/api/admin/users/e14bdacb-d1af-11f1-be50-f44d30e355a1
-Authorization: Bearer {{access_token}}
+###
+@test_user_id = {{createUser.response.body.$.user.id}}
 
-### Reset user password
-POST http://192.168.1.10/api/admin/users/3e55acdc-d1b1-11f1-be50-f44d30e355a1/reset-password
-Authorization: Bearer {{access_token}}
-
-# -----------------------------------------------------------------------------
-# CONTAINER IMAGES
-# -----------------------------------------------------------------------------
-
-### List container images
-GET http://192.168.1.10/api/container-images/
-Authorization: Bearer {{access_token}}
-
-### Create container image
-POST http://192.168.1.10/api/container-images/
-Authorization: Bearer {{access_token}}
+### Crear el mismo correo otra vez: conflicto (409)
+POST {{base_url}}/admin/users
+Authorization: Bearer {{admin_token_login_again}}
 Content-Type: application/json
 
 {
-    "name": "Ubuntu",
-    "image": "1"
+    "name": "Usuario Duplicado",
+    "email": "{{test_user_email}}",
+    "password": "{{test_user_password}}"
 }
 
-### Get container image
-GET http://192.168.1.10/api/container-images/d1999e8d-d1c8-11f1-be50-f44d30e355a1
-Authorization: Bearer {{access_token}}
-
-### Delete container image
-DELETE http://192.168.1.10/api/container-images/c57801aa-d1cb-11f1-be50-f44d30e355a1
-Authorization: Bearer {{access_token}}
-
-### Update container image
-PATCH http://192.168.1.10/api/container-images/16697629-4254-4fc2-bcce-4c88f4ecde2f
-Authorization: Bearer {{access_token}}
+### Crear usuario con datos inválidos (400)
+POST {{base_url}}/admin/users
+Authorization: Bearer {{admin_token_login_again}}
 Content-Type: application/json
 
 {
-    "name": "Ubuntu 20.04"
+    "name": "x",
+    "email": "invalido",
+    "password": "123"
 }
 
-# -----------------------------------------------------------------------------
-# WORKSPACES
-# -----------------------------------------------------------------------------
+### Consultar el usuario creado
+GET {{base_url}}/admin/users/{{test_user_id}}
+Authorization: Bearer {{admin_token_login_again}}
 
-### List workspaces
-GET http://192.168.1.10/api/workspaces/
-Authorization: Bearer {{access_token}}
+### Consultar usuario con UUID inválido (400)
+GET {{base_url}}/admin/users/no-es-un-uuid
+Authorization: Bearer {{admin_token_login_again}}
 
-### List all workspaces
-GET http://192.168.1.10/api/admin/workspaces/
-Authorization: Bearer {{access_token}}
-
-### Create workspace
-POST http://192.168.1.10/api/workspaces/
-Authorization: Bearer {{access_token}}
+### Actualizar usuario creado
+PATCH {{base_url}}/admin/users/{{test_user_id}}
+Authorization: Bearer {{admin_token_login_again}}
 Content-Type: application/json
 
 {
-    "name": "My Workspace",
-    "container_image_id": "fa67a9d1-d1ba-11f1-be50-f44d30e355a1"
+    "name": "Usuario API Test Actualizado",
+    "is_active": true
 }
+
+### Actualizar sin campos: debe responder 400
+PATCH {{base_url}}/admin/users/{{test_user_id}}
+Authorization: Bearer {{admin_token_login_again}}
+Content-Type: application/json
+
+{}
+
+### Intentar modificar al propio administrador: debe responder 401/403
+PATCH {{base_url}}/admin/users/{{adminLoginAgain.response.body.$.user.id}}
+Authorization: Bearer {{admin_token_login_again}}
+Content-Type: application/json
+
+{
+    "name": "No permitido"
+}
+
+### Login del usuario creado
+# @name userLogin
+POST {{base_url}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "{{test_user_email}}",
+    "password": "{{test_user_password}}"
+}
+
+###
+@user_token = {{userLogin.response.body.$.accessToken}}
+
+### Usuario normal no puede listar usuarios: debe responder 403
+GET {{base_url}}/admin/users
+Authorization: Bearer {{user_token}}
+
+### Cambiar contraseña: revoca sesiones anteriores y rota el access token
+# @name userChangePassword
+POST {{base_url}}/auth/change-password
+Authorization: Bearer {{user_token}}
+Content-Type: application/json
+
+{
+    "current": "{{test_user_password}}",
+    "password": "password123-nueva"
+}
+
+###
+@user_token_change_password = {{userChangePassword.response.body.$.accessToken}}
+
+### Cambiar contraseña con la contraseña actual incorrecta: debe responder 400
+POST {{base_url}}/auth/change-password
+Authorization: Bearer {{user_token_change_password}}
+Content-Type: application/json
+
+{
+    "current": "contraseña-incorrecta",
+    "password": "password123-nueva"
+}
+
+### Restablecer contraseña del usuario creado; se muestra una sola vez
+# @name resetUserPassword
+POST {{base_url}}/admin/users/{{test_user_id}}/reset-password
+Authorization: Bearer {{admin_token_login_again}}
+
+### Restablecer contraseña del propio administrador: debe responder 401/403
+POST {{base_url}}/admin/users/{{adminLoginAgain.response.body.$.user.id}}/reset-password
+Authorization: Bearer {{admin_token_login_again}}
+
+### Listar todos los workspaces como administrador
+GET {{base_url}}/admin/workspaces?page=1&limit=10
+Authorization: Bearer {{admin_token_login_again}}
+
+# =============================================================================
+# CATÁLOGO DE IMÁGENES
+# =============================================================================
+
+### Listar imágenes visibles para el administrador
+# @name listImages
+GET {{base_url}}/container-images
+Authorization: Bearer {{admin_token_login_again}}
+
+### Crear imagen Docker de prueba con referencia dinámica
+# @name createImage
+POST {{base_url}}/container-images
+Authorization: Bearer {{admin_token_login_again}}
+Content-Type: application/json
+
+{
+    "name": "Imagen API Test",
+    "image": "debiana:3.20",
+    "description": "Imagen usada por restclient/api-test.http",
+    "sort_order": 999,
+    "is_active": false
+}
+
+###
+@image_id = {{createImage.response.body.$.data.id}}
+
+### Crear la misma referencia otra vez: conflicto (409)
+POST {{base_url}}/container-images
+Authorization: Bearer {{admin_token_login_again}}
+Content-Type: application/json
+
+{
+    "name": "Imagen Duplicada",
+    "image": "alpine:3.20"
+}
+
+### Crear imagen con referencia inválida (400)
+POST {{base_url}}/container-images
+Authorization: Bearer {{admin_token_login_again}}
+Content-Type: application/json
+
+{
+    "name": "Imagen Inválida",
+    "image": "no es una imagen Docker"
+}
+
+### Consultar imagen creada
+GET {{base_url}}/container-images/{{image_id}}
+Authorization: Bearer {{admin_token_login_again}}
+
+### Consultar imagen con UUID inválido (400)
+GET {{base_url}}/container-images/no-es-un-uuid
+Authorization: Bearer {{admin_token_login_again}}
+
+### Actualizar imagen creada
+PATCH {{base_url}}/container-images/{{image_id}}
+Authorization: Bearer {{admin_token_login_again}}
+Content-Type: application/json
+
+{
+    "name": "Imagen API Test Actualizada",
+    "description": "Descripción actualizada",
+    "is_active": true
+}
+
+### Actualizar imagen sin campos: debe responder 400
+PATCH {{base_url}}/container-images/{{image_id}}
+Authorization: Bearer {{admin_token_login_again}}
+Content-Type: application/json
+
+{}
+
+### Usuario normal puede listar imágenes activas
+GET {{base_url}}/container-images
+Authorization: Bearer {{user_token}}
+
+### Usuario normal no puede crear imágenes: debe responder 403
+POST {{base_url}}/container-images
+Authorization: Bearer {{user_token}}
+Content-Type: application/json
+
+{
+    "name": "No permitido",
+    "image": "busybox:latest"
+}
+
+# =============================================================================
+# WORKSPACES Y DOCKER
+# =============================================================================
+
+### Listar workspaces del usuario
+# @name listWorkspaces
+GET {{base_url}}/workspaces?page=1&limit=10
+Authorization: Bearer {{user_token}}
+
+### Crear workspace: la API crea e inicia el contenedor
+# @name createWorkspace
+POST {{base_url}}/workspaces
+Authorization: Bearer {{user_token}}
+Content-Type: application/json
+
+{
+    "name": "Workspace API Test",
+    "container_image_id": "{{image_id}}"
+}
+
+###
+@workspace_id = {{createWorkspace.response.body.id}}
+
+### Crear workspace con UUID inválido: debe responder 400
+POST {{base_url}}/workspaces
+Authorization: Bearer {{user_token}}
+Content-Type: application/json
+
+{
+    "name": "Workspace inválido",
+    "container_image_id": "no-es-un-uuid"
+}
+
+### Consultar workspace creado
+GET {{base_url}}/workspaces/{{workspace_id}}
+Authorization: Bearer {{user_token}}
+
+### Consultar workspace con UUID inválido (400)
+GET {{base_url}}/workspaces/no-es-un-uuid
+Authorization: Bearer {{user_token}}
+
+### Detener contenedor
+POST {{base_url}}/workspaces/{{workspace_id}}/stop
+Authorization: Bearer {{user_token}}
+
+### Iniciar contenedor
+POST {{base_url}}/workspaces/{{workspace_id}}/start
+Authorization: Bearer {{user_token}}
+
+### Reiniciar contenedor
+POST {{base_url}}/workspaces/{{workspace_id}}/restart
+Authorization: Bearer {{user_token}}
+
+### Consultar métricas del contenedor
+GET {{base_url}}/workspaces/{{workspace_id}}/metrics
+Authorization: Bearer {{user_token}}
+
+### Eliminar workspace y su contenedor
+DELETE {{base_url}}/workspaces/{{workspace_id}}
+Authorization: Bearer {{user_token}}
+
+### Consultar workspace eliminado: debe responder 404
+GET {{base_url}}/workspaces/{{workspace_id}}
+Authorization: Bearer {{user_token}}
+
+# =============================================================================
+# LIMPIEZA
+# =============================================================================
+
+### Eliminar imagen de prueba después de eliminar el workspace
+DELETE {{base_url}}/container-images/{{image_id}}
+Authorization: Bearer {{admin_token_login_again}}
+
+### Eliminar usuario de prueba
+DELETE {{base_url}}/admin/users/{{test_user_id}}
+Authorization: Bearer {{admin_token_login_again}}
+
+### Consultar usuario eliminado: debe responder 404
+GET {{base_url}}/admin/users/{{test_user_id}}
+Authorization: Bearer {{admin_token_login_again}}
+
+### Ruta inexistente: debe responder 404
+GET {{base_url}}/ruta-que-no-existe
+Authorization: Bearer {{admin_token_login_again}}

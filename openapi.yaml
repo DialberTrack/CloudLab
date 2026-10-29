@@ -1,0 +1,1326 @@
+openapi: 3.1.0
+info:
+  title: CloudLab API
+  version: 1.0.0
+  license:
+    name: Proprietary
+  description: |
+    API REST para autenticación, usuarios, imágenes Docker y workspaces.
+    La base URL incluye el prefijo `/api`.
+  contact:
+    name: CloudLab
+servers:
+  - url: http://localhost:8000/api
+    description: Desarrollo local
+tags:
+  - name: Autenticación
+    description: Inicio de sesión, renovación de tokens y perfil.
+  - name: Usuarios
+    description: Operaciones administrativas sobre usuarios.
+  - name: Workspaces
+    description: Entornos y operaciones de sus contenedores Docker.
+  - name: Imágenes de contenedor
+    description: Catálogo de imágenes Docker disponibles.
+paths:
+  /auth/login:
+    post:
+      tags: [Autenticación]
+      summary: Iniciar sesión
+      description: Establece la cookie HTTP-only `refreshToken`.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+            example:
+              email: admin@cloudlab.local
+              password: password123
+      responses:
+        '200':
+          description: Sesión iniciada
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/RefreshCookie'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Credenciales inválidas
+                code: INVALID_CREDENTIALS
+        '403':
+          $ref: '#/components/responses/InactiveUser'
+  /auth/refresh:
+    post:
+      tags: [Autenticación]
+      summary: Renovar tokens
+      description: Lee `refreshToken`, lo rota y establece una cookie nueva.
+      operationId: refresh
+      security:
+        - refreshCookie: []
+      responses:
+        '200':
+          description: Tokens renovados
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/RefreshCookie'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessTokenResponse'
+        '401':
+          description: Cookie ausente, inválida, expirada o revocada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Reutilización de un refresh token revocado o usuario inactivo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /auth/logout:
+    post:
+      tags: [Autenticación]
+      summary: Cerrar sesión
+      description: Revoca el refresh token si existe y limpia la cookie.
+      operationId: logout
+      security:
+        - refreshCookie: []
+      responses:
+        '200':
+          description: Sesión cerrada
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/ClearedRefreshCookie'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                message: Sesión cerrada correctamente
+  /auth/me:
+    get:
+      tags: [Autenticación]
+      summary: Obtener perfil actual
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Perfil del usuario autenticado
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user:
+                    $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+  /auth/change-password:
+    post:
+      tags: [Autenticación]
+      summary: Cambiar contraseña
+      description: Revoca sesiones anteriores y establece un refresh token nuevo.
+      operationId: changePassword
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordInput'
+      responses:
+        '200':
+          description: Contraseña cambiada
+          headers:
+            Set-Cookie:
+              $ref: '#/components/headers/RefreshCookie'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessTokenResponse'
+              example:
+                message: Contraseña cambiada exitosamente
+                accessToken: eyJ...
+        '400':
+          description: Entrada inválida o contraseña actual incorrecta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+
+  /admin/users:
+    get:
+      tags: [Usuarios]
+      summary: Listar usuarios
+      operationId: listUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/UserSearch'
+      responses:
+        '200':
+          description: Página de usuarios
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Usuarios]
+      summary: Crear usuario
+      operationId: createUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserInput'
+      responses:
+        '200':
+          description: Usuario creado
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/EmailConflict'
+  /admin/users/{id}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [Usuarios]
+      summary: Obtener usuario
+      operationId: getUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Usuario encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+    patch:
+      tags: [Usuarios]
+      summary: Actualizar usuario
+      operationId: updateUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserInput'
+      responses:
+        '200':
+          description: Usuario actualizado
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          description: Operación no permitida o rol insuficiente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '409':
+          $ref: '#/components/responses/EmailConflict'
+    delete:
+      tags: [Usuarios]
+      summary: Eliminar usuario
+      operationId: deleteUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Usuario eliminado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                message: Usuario eliminado exitosamente
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          description: No se puede autoeliminarse ni eliminar administradores
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+  /admin/users/{id}/reset-password:
+    post:
+      tags: [Usuarios]
+      summary: Restablecer contraseña de usuario
+      description: La contraseña temporal se devuelve una sola vez y revoca sus sesiones.
+      operationId: resetUserPassword
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Contraseña restablecida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResetPasswordResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          description: No se puede restablecer la propia cuenta ni la de un administrador
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+  /admin/workspaces:
+    get:
+      tags: [Workspaces]
+      summary: Listar todos los workspaces
+      operationId: listAllWorkspaces
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/WorkspaceSearch'
+      responses:
+        '200':
+          description: Página global de workspaces
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /workspaces:
+    get:
+      tags: [Workspaces]
+      summary: Listar workspaces propios
+      operationId: listWorkspaces
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/WorkspaceSearch'
+      responses:
+        '200':
+          description: Página de workspaces del usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+    post:
+      tags: [Workspaces]
+      summary: Crear workspace
+      description: Crea el registro y prepara/inicia el contenedor Docker.
+      operationId: createWorkspace
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkspaceInput'
+      responses:
+        '201':
+          description: Workspace creado y contenedor iniciado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceDetails'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/ContainerImageNotFound'
+        '422':
+          $ref: '#/components/responses/ImageNotAvailable'
+        '503':
+          description: Docker no disponible o creación fallida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /workspaces/{id}:
+    parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+    get:
+      tags: [Workspaces]
+      summary: Obtener workspace propio
+      operationId: getWorkspace
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Workspace encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceDetails'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/WorkspaceNotFound'
+    delete:
+      tags: [Workspaces]
+      summary: Eliminar workspace
+      description: Elimina el contenedor asociado y después el registro.
+      operationId: deleteWorkspace
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Workspace eliminado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                message: Workspace eliminado correctamente
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/WorkspaceNotFound'
+        '409':
+          $ref: '#/components/responses/WorkspaceContainerUnavailable'
+        '502':
+          $ref: '#/components/responses/DockerOperation'
+  /workspaces/{id}/start:
+    post:
+      tags: [Workspaces]
+      summary: Iniciar workspace
+      operationId: startWorkspace
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+      responses:
+        '200':
+          description: Workspace iniciado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceDetails'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          description: Workspace o contenedor no disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/WorkspaceContainerUnavailable'
+        '502':
+          $ref: '#/components/responses/DockerOperation'
+        '503':
+          $ref: '#/components/responses/DockerUnavailable'
+  /workspaces/{id}/stop:
+    post:
+      tags: [Workspaces]
+      summary: Detener workspace
+      operationId: stopWorkspace
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+      responses:
+        '200':
+          description: Workspace detenido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceDetails'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          description: Workspace o contenedor no disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/WorkspaceContainerUnavailable'
+        '502':
+          $ref: '#/components/responses/DockerOperation'
+        '503':
+          $ref: '#/components/responses/DockerUnavailable'
+  /workspaces/{id}/restart:
+    post:
+      tags: [Workspaces]
+      summary: Reiniciar workspace
+      operationId: restartWorkspace
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+      responses:
+        '200':
+          description: Workspace reiniciado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceDetails'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          description: Workspace o contenedor no disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/WorkspaceContainerUnavailable'
+        '502':
+          $ref: '#/components/responses/DockerOperation'
+        '503':
+          $ref: '#/components/responses/DockerUnavailable'
+  /workspaces/{id}/metrics:
+    get:
+      tags: [Workspaces]
+      summary: Obtener métricas Docker
+      operationId: getWorkspaceMetrics
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+      responses:
+        '200':
+          description: Objeto devuelto por Docker Stats
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DockerStats'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          description: Workspace o contenedor no disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/WorkspaceContainerUnavailable'
+        '502':
+          $ref: '#/components/responses/DockerOperation'
+        '503':
+          $ref: '#/components/responses/DockerUnavailable'
+
+  /container-images:
+    get:
+      tags: [Imágenes de contenedor]
+      summary: Listar imágenes visibles
+      description: Usuarios normales reciben solo imágenes activas; admins reciben todas.
+      operationId: listContainerImages
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Catálogo visible
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ContainerImage'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+    post:
+      tags: [Imágenes de contenedor]
+      summary: Crear imagen de contenedor
+      operationId: createContainerImage
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateContainerImageInput'
+      responses:
+        '200':
+          description: Imagen creada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ContainerImage'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/ImageConflict'
+  /container-images/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ImageId'
+    get:
+      tags: [Imágenes de contenedor]
+      summary: Obtener imagen de contenedor
+      operationId: getContainerImage
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Imagen encontrada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ContainerImage'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/ContainerImageNotFound'
+    patch:
+      tags: [Imágenes de contenedor]
+      summary: Actualizar imagen de contenedor
+      operationId: updateContainerImage
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateContainerImageInput'
+      responses:
+        '200':
+          description: Imagen actualizada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ContainerImage'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ContainerImageNotFound'
+        '409':
+          $ref: '#/components/responses/ImageConflict'
+    delete:
+      tags: [Imágenes de contenedor]
+      summary: Eliminar imagen de contenedor
+      operationId: deleteContainerImage
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Imagen eliminada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                message: Imagen de contenedor eliminada correctamente.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ContainerImageNotFound'
+        '500':
+          description: El borrado no afectó ninguna fila
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token devuelto por login o refresh.
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: refreshToken
+      description: Cookie HTTP-only administrada por la API.
+  headers:
+    RefreshCookie:
+      description: Cookie HTTP-only de refresh token rotada por la API.
+      schema:
+        type: string
+    ClearedRefreshCookie:
+      description: Cookie refreshToken expirada por logout.
+      schema:
+        type: string
+  parameters:
+    Page:
+      name: page
+      in: query
+      required: false
+      description: Página positiva. Valores no numéricos usan 1.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Elementos por página; la API limita el valor a 100.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+    UserSearch:
+      name: q
+      in: query
+      required: false
+      description: Busca por nombre o correo.
+      schema:
+        type: string
+    WorkspaceSearch:
+      name: q
+      in: query
+      required: false
+      description: Busca por nombre o estado; en el listado admin también por imagen.
+      schema:
+        type: string
+    UserId:
+      name: id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    WorkspaceId:
+      name: id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    ImageId:
+      name: id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+  responses:
+    ValidationError:
+      description: Entrada inválida
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+    Unauthenticated:
+      description: Token ausente, inválido o usuario inactivo
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            unauthenticated:
+              value:
+                error: Token de autenticación no proporcionado o inválido
+                code: UNAUTHENTICATED
+    Forbidden:
+      description: El usuario autenticado no tiene permisos
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            forbidden:
+              value:
+                error: Acceso denegado. Se requiere rol de administrador.
+                code: FORBIDDEN
+    InactiveUser:
+      description: La cuenta está inactiva
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            inactive:
+              value:
+                error: Usuario inactivo. Contacte al administrador.
+                code: USER_INACTIVE
+    UserNotFound:
+      description: Usuario no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            notFound:
+              value:
+                error: Usuario no encontrado
+                code: USER_NOT_FOUND
+    EmailConflict:
+      description: El correo electrónico ya está en uso
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            conflict:
+              value:
+                error: El correo electrónico ya está en uso
+                code: EMAIL_ALREADY_IN_USE
+    WorkspaceNotFound:
+      description: Workspace inexistente o no perteneciente al usuario
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            notFound:
+              value:
+                error: El workspace solicitado no está disponible.
+                code: WORKSPACE_NOT_FOUND
+    WorkspaceContainerUnavailable:
+      description: El workspace no tiene un contenedor disponible
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            unavailable:
+              value:
+                error: El contenedor del workspace no está disponible.
+                code: WORKSPACE_CONTAINER_UNAVAILABLE
+    DockerOperation:
+      description: Docker no pudo completar la operación
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            operation:
+              value:
+                error: No se pudo iniciar el workspace.
+                code: WORKSPACE_OPERATION
+    DockerUnavailable:
+      description: Docker no está disponible
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            unavailable:
+              value:
+                error: El servicio de contenedores no está disponible.
+                code: DOCKER_UNAVAILABLE
+    ImageNotAvailable:
+      description: La imagen registrada no está disponible localmente en Docker
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            unavailable:
+              value:
+                error: La imagen de contenedor 'ubuntu:24.04' no está disponible en Docker.
+                code: IMAGE_NOT_FOUND
+    ContainerImageNotFound:
+      description: Imagen de contenedor no encontrada o inactiva
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            notFound:
+              value:
+                error: La imagen de contenedor solicitada no está disponible.
+                code: CONTAINER_IMAGE_NOT_FOUND
+    ImageConflict:
+      description: La referencia Docker ya está registrada
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            conflict:
+              value:
+                error: La imagen de contenedor ya existe
+                code: IMAGE_ALREADY_EXISTS
+  schemas:
+    Uuid:
+      type: string
+      format: uuid
+      example: 11111111-1111-4111-8111-111111111111
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          description: Código estable para lógica del cliente.
+      additionalProperties: false
+    ValidationError:
+      type: object
+      required: [error, code, issues]
+      properties:
+        error:
+          type: string
+          example: Error de validación
+        code:
+          type: string
+          const: VALIDATION_ERROR
+        issues:
+          type: array
+          description: Issues de Zod. La estructura puede variar según la validación.
+          items:
+            type: object
+            additionalProperties: true
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+    LoginInput:
+      type: object
+      required: [email, password]
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+          minLength: 8
+          maxLength: 255
+    ChangePasswordInput:
+      type: object
+      required: [current, password]
+      additionalProperties: false
+      properties:
+        current:
+          type: string
+          minLength: 8
+          maxLength: 255
+        password:
+          type: string
+          minLength: 8
+          maxLength: 255
+    LoginResponse:
+      type: object
+      required: [message, accessToken, user]
+      properties:
+        message:
+          type: string
+          example: Inicio de sesión exitoso
+        accessToken:
+          type: string
+        user:
+          $ref: '#/components/schemas/LoginUser'
+    AccessTokenResponse:
+      type: object
+      required: [message, accessToken]
+      properties:
+        message:
+          type: string
+        accessToken:
+          type: string
+    LoginUser:
+      type: object
+      required: [id, email, role]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/Role'
+    Role:
+      type: string
+      enum: [user, admin]
+    User:
+      type: object
+      required: [id, name, email, role, created_at, updated_at, is_active]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        role:
+          $ref: '#/components/schemas/Role'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        is_active:
+          type: boolean
+    UserProfile:
+      type: object
+      required: [id, name, email, role, created_at, updated_at]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: '#/components/schemas/Role'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateUserInput:
+      type: object
+      required: [name, email, password]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+          minLength: 8
+          maxLength: 255
+        role:
+          $ref: '#/components/schemas/Role'
+    UpdateUserInput:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        role:
+          $ref: '#/components/schemas/Role'
+        is_active:
+          type: boolean
+    UserListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    ResetPasswordResponse:
+      type: object
+      required: [message, user]
+      properties:
+        message:
+          type: string
+          example: Contraseña restablecida exitosamente
+        user:
+          type: object
+          required: [id, email, newPassword]
+          properties:
+            id:
+              $ref: '#/components/schemas/Uuid'
+            email:
+              type: string
+              format: email
+            newPassword:
+              type: string
+              minLength: 12
+              description: Contraseña temporal disponible solo en esta respuesta.
+    Pagination:
+      type: object
+      required: [page, limit, total, totalPages]
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+    CreateWorkspaceInput:
+      type: object
+      required: [name, container_image_id]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+        container_image_id:
+          $ref: '#/components/schemas/Uuid'
+    WorkspaceStatus:
+      type: string
+      enum: [creating, running, stopped, error, deleting]
+    WorkspaceDetails:
+      type: object
+      required: [id, name, status, container_id, created_at, image_name, image]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+        status:
+          $ref: '#/components/schemas/WorkspaceStatus'
+        container_id:
+          type: [string, 'null']
+          maxLength: 128
+        created_at:
+          type: string
+          format: date-time
+        image_name:
+          type: string
+        image:
+          type: string
+    WorkspaceListItem:
+      type: object
+      required: [id, name, status, created_at, updated_at, image_name, image]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        user_id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+        status:
+          $ref: '#/components/schemas/WorkspaceStatus'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        image_id:
+          $ref: '#/components/schemas/Uuid'
+        image_name:
+          type: string
+        image:
+          type: string
+    WorkspaceListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkspaceListItem'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    ContainerImage:
+      type: object
+      required: [id, name, image, description, icon, is_active, sort_order, created_at, updated_at]
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+        image:
+          type: string
+          maxLength: 255
+          description: Referencia Docker validada por el backend.
+        description:
+          type: [string, 'null']
+          maxLength: 65535
+        icon:
+          type: [string, 'null']
+          maxLength: 255
+        is_active:
+          type: boolean
+        sort_order:
+          type: integer
+          minimum: 0
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateContainerImageInput:
+      type: object
+      required: [name, image]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+        image:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: [string, 'null']
+          maxLength: 65535
+        icon:
+          type: [string, 'null']
+          maxLength: 255
+        sort_order:
+          type: integer
+          minimum: 0
+          default: 0
+        is_active:
+          type: boolean
+          default: true
+    UpdateContainerImageInput:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+        image:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: [string, 'null']
+          maxLength: 65535
+        icon:
+          type: [string, 'null']
+          maxLength: 255
+        is_active:
+          type: boolean
+        sort_order:
+          type: integer
+          minimum: 0
+    DockerStats:
+      type: object
+      description: Respuesta de dockerode Container.stats con stream=false.
+      additionalProperties: true

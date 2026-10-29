@@ -1,8 +1,17 @@
-import crypto from 'node:crypto';
 import type { ContainerInspectInfo, ContainerStats } from 'dockerode';
+import crypto from 'node:crypto';
 import { DockerService } from '../docker/docker.service.js';
-import { DockerError } from '../errors/docker.error.js';
-import { WorkspaceDeletionError } from '../errors/workspace.error.js';
+import {
+    DockerContainerNotFoundError,
+    DockerUnavailableError,
+    ImageNotFoundError,
+} from '../errors/docker.error.js';
+import {
+    WorkspaceContainerUnavailableError,
+    WorkspaceCreationError,
+    WorkspaceDeletionError,
+    WorkspaceOperationError,
+} from '../errors/workspace.error.js';
 import { ContainerImageRepository } from '../repositories/container-image.repository.js';
 import { WorkspaceRepository } from '../repositories/workspace.repository.js';
 import type { CreateWorkspaceInput } from '../schemas/workspaces.schema.js';
@@ -57,10 +66,13 @@ export class WorkspaceService {
             try {
                 await WorkspaceRepository.update(id, {
                     status: 'error',
-                    error_message: 'No se pudo crear el contenedor del workspace.',
+                    error_message:
+                        error instanceof Error
+                            ? error.message
+                            : 'No se pudo crear el contenedor del workspace.',
                 });
             } catch (updateError: unknown) {
-                logger.error('No se pudo actualizar el estado fallido del workspace.', {
+                logger.error('No se pudo marcar como fallido el workspace creado.', {
                     workspaceId: id,
                     error: updateError,
                 });
@@ -70,7 +82,12 @@ export class WorkspaceService {
                 workspaceId: id,
                 error,
             });
-            throw new DockerError();
+
+            if (error instanceof ImageNotFoundError || error instanceof DockerUnavailableError) {
+                throw error;
+            }
+
+            throw new WorkspaceCreationError();
         }
     };
 
@@ -83,7 +100,10 @@ export class WorkspaceService {
                 await DockerService.removeContainer(workspace.container_id);
             } catch (error: unknown) {
                 await WorkspaceService.markError(id, error);
-                throw new DockerError('No se pudo eliminar el contenedor del workspace.');
+                throw WorkspaceService.toOperationError(
+                    error,
+                    'No se pudo eliminar el contenedor del workspace.'
+                );
             }
         }
 
@@ -96,7 +116,10 @@ export class WorkspaceService {
     static async start(id: string, userId: string) {
         const workspace = await WorkspaceRepository.getById(id, userId);
         const containerId = WorkspaceService.requireContainerId(workspace.container_id);
-        const container = await DockerService.startContainer(containerId);
+        const container = await WorkspaceService.runDockerOperation(
+            () => DockerService.startContainer(containerId),
+            'No se pudo iniciar el workspace.'
+        );
 
         return WorkspaceRepository.update(id, {
             status: 'running',
@@ -108,7 +131,10 @@ export class WorkspaceService {
     static async stop(id: string, userId: string) {
         const workspace = await WorkspaceRepository.getById(id, userId);
         const containerId = WorkspaceService.requireContainerId(workspace.container_id);
-        await DockerService.stopContainer(containerId);
+        await WorkspaceService.runDockerOperation(
+            () => DockerService.stopContainer(containerId),
+            'No se pudo detener el workspace.'
+        );
 
         return WorkspaceRepository.update(id, {
             status: 'stopped',
@@ -119,7 +145,10 @@ export class WorkspaceService {
     static async restart(id: string, userId: string) {
         const workspace = await WorkspaceRepository.getById(id, userId);
         const containerId = WorkspaceService.requireContainerId(workspace.container_id);
-        await DockerService.restartContainer(containerId);
+        await WorkspaceService.runDockerOperation(
+            () => DockerService.restartContainer(containerId),
+            'No se pudo reiniciar el workspace.'
+        );
 
         return WorkspaceRepository.update(id, {
             status: 'running',
@@ -131,15 +160,44 @@ export class WorkspaceService {
         const workspace = await WorkspaceRepository.getById(id, userId);
         const containerId = WorkspaceService.requireContainerId(workspace.container_id);
 
-        return DockerService.getStats(containerId);
+        return WorkspaceService.runDockerOperation(
+            () => DockerService.getStats(containerId),
+            'No se pudieron consultar las métricas del workspace.'
+        );
     }
 
     private static requireContainerId(containerId: string | null | undefined): string {
         if (!containerId) {
-            throw new DockerError('El workspace no tiene un contenedor asociado.');
+            throw new WorkspaceContainerUnavailableError(
+                'El workspace no tiene un contenedor disponible.'
+            );
         }
 
         return containerId;
+    }
+
+    private static async runDockerOperation<T>(
+        operation: () => Promise<T>,
+        message: string
+    ): Promise<T> {
+        try {
+            return await operation();
+        } catch (error: unknown) {
+            throw WorkspaceService.toOperationError(error, message);
+        }
+    }
+
+    private static toOperationError(error: unknown, fallbackMessage: string): Error {
+        if (error instanceof DockerContainerNotFoundError) {
+            return new WorkspaceContainerUnavailableError();
+        }
+
+        if (error instanceof DockerUnavailableError) {
+            return error;
+        }
+
+        logger.error(fallbackMessage, { error });
+        return new WorkspaceOperationError(fallbackMessage);
     }
 
     private static getPublishedPort(container: ContainerInspectInfo): number | null {

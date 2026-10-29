@@ -12,6 +12,7 @@ const envSchema = z.object({
 
     APP_HOST: z.string().min(1, 'APP_HOST es requerido'),
     APP_PORT: z.coerce.number().int().min(1).max(65535).default(8000),
+    FRONTEND_URL: z.string().url().default('http://localhost:5173'),
 
     DB_HOST: z.string().min(1, 'DB_HOST es requerido'),
     DB_USER: z.string().min(1, 'DB_USER es requerido'),

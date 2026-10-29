@@ -1,29 +1,32 @@
-# Documentacion de la API para frontend
+# Contrato HTTP de CloudLab
 
-## Convenciones generales
+Base URL local: `http://<APP_HOST>:<APP_PORT>/api`. Con la configuración
+predeterminada es `http://localhost:8000/api`. Los endpoints de este documento
+se muestran sin el prefijo `/api`.
 
-- Base URL local: `http://<APP_HOST>:<APP_PORT>/api`.
-- Las respuestas JSON de error usan `{ "error": "..." }`.
-- Los errores de validacion `400` agregan `issues`.
-- Para endpoints protegidos enviar:
+El contrato formal y reutilizable está en
+[`../openapi.yaml`](../openapi.yaml). Puede importarse en Swagger UI, Postman,
+Insomnia o herramientas de generación de clientes.
 
-```http
-Authorization: Bearer <accessToken>
-```
+## Convenciones
 
-- El refresh token se administra automaticamente en la cookie `refreshToken`.
-  El frontend debe enviar credenciales (`credentials: 'include'` en `fetch`).
-- El access token no se envia en la cookie; debe conservarse en memoria y renovarse
-  con `/auth/refresh`.
-- Las fechas de usuario se devuelven como valores de fecha serializados por JSON.
+- Los errores responden `{ "error": "...", "code": "..." }`; los errores de
+  validación `400` incluyen `issues`. `code` es estable para que el cliente
+  pueda distinguir errores sin depender del texto.
+- Un endpoint protegido requiere `Authorization: Bearer <accessToken>`.
+- El refresh token se guarda en la cookie HTTP-only `refreshToken`. El cliente
+  debe usar `credentials: 'include'` en `fetch`.
+- El access token debe conservarse en memoria y renovarse con `/auth/refresh`.
+- Los identificadores son UUID y las fechas se serializan como strings ISO 8601.
+- Las rutas rechazan métodos no declarados con `405`.
+- El frontend local usa `FRONTEND_URL` (por defecto `http://localhost:5173`);
+  el backend permite ese origen con credenciales para enviar la cookie de refresh.
 
-## Autenticacion
+## Autenticación
 
 ### `POST /auth/login`
 
-Inicia sesion. No requiere access token.
-
-**Body**
+No requiere autenticación.
 
 ```json
 {
@@ -32,7 +35,8 @@ Inicia sesion. No requiere access token.
 }
 ```
 
-**Respuesta `200`**
+Responde `200` con un `accessToken`, un usuario sin `password` y establece
+`refreshToken`:
 
 ```json
 {
@@ -46,63 +50,29 @@ Inicia sesion. No requiere access token.
 }
 ```
 
-Tambien establece la cookie HTTP-only `refreshToken`.
-
-**Errores:** `400` body invalido, `401` credenciales invalidas, `403` usuario inactivo.
+Errores: `400` entrada inválida, `401` credenciales inválidas, `403` usuario
+inactivo.
 
 ### `POST /auth/refresh`
 
-Renueva la sesion usando la cookie `refreshToken`. No requiere header Bearer.
-
-**Respuesta `200`**
-
-```json
-{
-    "message": "Token refrescado exitosamente",
-    "accessToken": "<nuevo-jwt>"
-}
-```
-
-La cookie anterior se revoca y se establece una nueva. **Errores:** `401` cookie
-ausente, invalida, expirada o revocada de forma concurrente; `403` reutilizacion
-de un token ya revocado; `403` usuario inactivo.
+No requiere header Bearer; usa la cookie `refreshToken`. Revoca la cookie
+anterior, rota el token y responde `{ "message": "...", "accessToken": "<jwt>" }`.
+Errores: `401` cookie ausente, inválida, expirada o revocada de forma concurrente;
+`403` reutilización de un token revocado o usuario inactivo.
 
 ### `POST /auth/logout`
 
-Revoca el refresh token, si existe, y limpia la cookie. No requiere header Bearer.
-
-**Respuesta `200`**
-
-```json
-{ "message": "Sesión cerrada correctamente" }
-```
+No requiere header Bearer. Revoca el refresh token si existe, limpia la cookie y
+responde `{ "message": "Sesión cerrada correctamente" }`.
 
 ### `GET /auth/me`
 
-Requiere Bearer token. Devuelve el perfil activo sin `password` ni `is_active`.
-
-**Respuesta `200`**
-
-```json
-{
-    "user": {
-        "id": "<uuid>",
-        "name": "Usuario",
-        "email": "usuario@example.com",
-        "role": "user",
-        "created_at": "2026-01-01T00:00:00.000Z",
-        "updated_at": "2026-01-01T00:00:00.000Z"
-    }
-}
-```
-
-**Errores:** `401` token ausente/invalido o usuario inactivo; `404` usuario inexistente.
+Requiere access token. Responde `{ "user": { ... } }` sin `password` ni
+`is_active`. Errores: `401` token ausente o inválido, `404` usuario inexistente.
 
 ### `POST /auth/change-password`
 
-Requiere Bearer token y cambia la contraseña del usuario autenticado.
-
-**Body**
+Requiere access token:
 
 ```json
 {
@@ -111,238 +81,118 @@ Requiere Bearer token y cambia la contraseña del usuario autenticado.
 }
 ```
 
-**Respuesta `200`**
+La nueva contraseña debe tener entre 8 y 255 caracteres. Revoca sesiones
+anteriores, establece una nueva cookie y responde con un access token nuevo.
 
-```json
-{
-    "message": "Contraseña cambiada exitosamente",
-    "accessToken": "<nuevo-jwt>"
-}
-```
+## Administración
 
-Tambien revoca las sesiones anteriores y establece una nueva cookie de refresh.
-**Errores:** `400` validacion o contraseña actual incorrecta; `401` autenticacion invalida.
+Todas estas rutas requieren access token con rol `admin`.
 
-## Administracion de usuarios
+| Método   | Endpoint                          | Descripción                |
+| -------- | --------------------------------- | -------------------------- |
+| `GET`    | `/admin/users`                    | Lista usuarios             |
+| `POST`   | `/admin/users`                    | Crea usuario               |
+| `GET`    | `/admin/users/:id`                | Consulta usuario           |
+| `PATCH`  | `/admin/users/:id`                | Actualiza usuario          |
+| `DELETE` | `/admin/users/:id`                | Elimina usuario            |
+| `POST`   | `/admin/users/:id/reset-password` | Genera contraseña temporal |
+| `GET`    | `/admin/workspaces`               | Lista todos los workspaces |
 
-Todos los endpoints de esta seccion requieren Bearer token con rol `admin`.
+`GET /admin/users` acepta `page` (por defecto `1`), `limit` (por defecto `10`,
+máximo `100`) y `q` para buscar por nombre o email. Responde con `data` y
+`pagination`.
 
-### `GET /admin/users`
+`POST /admin/users` recibe `name`, `email`, `password` y opcionalmente `role`
+(`user` o `admin`). `PATCH` permite `name`, `email`, `role` e `is_active`, y
+requiere al menos un campo. Las respuestas de usuario nunca incluyen
+`password`.
 
-Lista usuarios sin contraseñas. Query opcional:
-
-| Parametro | Tipo   | Default | Descripcion                        |
-| --------- | ------ | ------: | ---------------------------------- |
-| `page`    | number |     `1` | Pagina positiva                    |
-| `limit`   | number |    `10` | Elementos por pagina, maximo `100` |
-| `q`       | string |       - | Busca por nombre o email           |
-
-**Respuesta `200`**
-
-```json
-{
-    "data": [],
-    "pagination": {
-        "page": 1,
-        "limit": 10,
-        "total": 0,
-        "totalPages": 0
-    }
-}
-```
-
-### `POST /admin/users`
-
-Crea un usuario. `role` es opcional y acepta `user` o `admin`.
-
-```json
-{
-    "name": "Nuevo usuario",
-    "email": "nuevo@example.com",
-    "password": "contraseña-segura",
-    "role": "user"
-}
-```
-
-Responde `200` con `{ "user": { ... } }`, sin `password`. **Errores:** `400`
-validacion, `409` email duplicado, `500` error de persistencia.
-
-### `GET /admin/users/:id`
-
-Obtiene un usuario por UUID. Responde `200` con `{ "user": { ... } }`, sin `password`.
-**Errores:** `400` UUID invalido, `404` usuario inexistente.
-
-### `PATCH /admin/users/:id`
-
-Actualiza uno o mas campos: `name`, `email`, `role`, `is_active`. Se requiere al
-menos un campo.
-
-```json
-{
-    "name": "Nombre actualizado",
-    "is_active": true
-}
-```
-
-No se puede modificar el propio usuario ni cambiar el rol de un administrador.
-**Errores:** `400` validacion, `403` operacion prohibida, `404` usuario inexistente,
-`409` email duplicado.
-
-### `DELETE /admin/users/:id`
-
-Elimina un usuario no administrador. No permite autoeliminacion ni eliminar otro
-administrador. Responde:
-
-```json
-{ "message": "Usuario eliminado exitosamente" }
-```
-
-**Errores:** `400` UUID invalido, `403` operacion prohibida, `404` usuario inexistente,
-`500` si la eliminacion no afecta ninguna fila.
-
-### `POST /admin/users/:id/reset-password`
-
-Genera una contraseña temporal para un usuario no administrador. La contraseña
-temporal se muestra una sola vez:
-
-```json
-{
-    "message": "Contraseña restablecida exitosamente",
-    "user": {
-        "id": "<uuid>",
-        "email": "usuario@example.com",
-        "newPassword": "<temporal>"
-    }
-}
-```
-
-**Errores:** `400` UUID invalido, `403` auto-restablecimiento o usuario administrador,
-`404` usuario inexistente.
+Por seguridad, un administrador no puede autoeliminarse, auto-restablecerse,
+modificarse ni eliminar a otro administrador. El restablecimiento devuelve la
+contraseña temporal una sola vez. Errores habituales: `400` validación o UUID
+inválido, `403` operación no permitida, `404` usuario inexistente y `409` email
+duplicado.
 
 ## Workspaces
 
-Rutas disponibles:
+Todas las rutas requieren autenticación. Los usuarios normales solo acceden a
+sus workspaces; `/admin/workspaces` requiere rol `admin`.
 
-| Metodo   | Endpoint                  | Proposito           |
-| -------- | ------------------------- | ------------------- |
-| `GET`    | `/workspaces`             | Listar workspaces   |
-| `POST`   | `/workspaces`             | Crear workspace     |
-| `GET`    | `/workspaces/:id`         | Consultar workspace |
-| `DELETE` | `/workspaces/:id`         | Eliminar workspace  |
-| `POST`   | `/workspaces/:id/start`   | Iniciar workspace   |
-| `POST`   | `/workspaces/:id/stop`    | Detener workspace   |
-| `POST`   | `/workspaces/:id/restart` | Reiniciar workspace |
-| `GET`    | `/workspaces/:id/metrics` | Consultar metricas  |
+| Método   | Endpoint                  | Descripción                  |
+| -------- | ------------------------- | ---------------------------- |
+| `GET`    | `/workspaces`             | Lista workspaces del usuario |
+| `POST`   | `/workspaces`             | Crea workspace               |
+| `GET`    | `/workspaces/:id`         | Consulta workspace           |
+| `DELETE` | `/workspaces/:id`         | Elimina workspace            |
+| `POST`   | `/workspaces/:id/start`   | Inicia contenedor            |
+| `POST`   | `/workspaces/:id/stop`    | Detiene contenedor           |
+| `POST`   | `/workspaces/:id/restart` | Reinicia contenedor          |
+| `GET`    | `/workspaces/:id/metrics` | Consulta métricas            |
 
-Estos handlers estan declarados pero actualmente son stubs sin logica de negocio ni
-respuestas implementadas. El frontend no debe asumir un contrato de respuesta hasta
-que se implementen sus repositorios, esquemas y controladores.
-
-## Imagenes de contenedor
-
-Todos los endpoints requieren Bearer token. El listado y la consulta están disponibles
-para cualquier usuario autenticado; crear, actualizar y eliminar requieren rol `admin`.
-
-Los usuarios normales reciben únicamente imágenes con `is_active = true`, que son las
-opciones disponibles para crear un workspace. Los administradores reciben todas las
-imágenes, incluidas las desactivadas, para poder gestionar el catálogo.
-
-| Metodo   | Endpoint                | Proposito                 |
-| -------- | ----------------------- | ------------------------- |
-| `GET`    | `/container-images`     | Listar imagenes activas   |
-| `POST`   | `/container-images`     | Crear imagen (admin)      |
-| `GET`    | `/container-images/:id` | Consultar imagen          |
-| `PATCH`  | `/container-images/:id` | Actualizar imagen (admin) |
-| `DELETE` | `/container-images/:id` | Eliminar imagen (admin)   |
-
-### `GET /container-images`
-
-Devuelve el catálogo ordenado por `sort_order` y después por nombre. Los usuarios normales
-reciben solo imágenes activas; los administradores reciben todas.
+Para crear:
 
 ```json
 {
-    "data": [
-        {
-            "id": "<uuid>",
-            "name": "Ubuntu 24.04",
-            "image": "ubuntu:24.04",
-            "description": "Entorno base Ubuntu 24.04 LTS",
-            "icon": "/icons/ubuntu.svg",
-            "is_active": true,
-            "sort_order": 1,
-            "created_at": "2026-01-01T00:00:00.000Z",
-            "updated_at": "2026-01-01T00:00:00.000Z"
-        }
-    ]
+    "name": "Mi workspace",
+    "container_image_id": "<uuid>"
 }
 ```
 
-### `POST /container-images`
+`name` debe tener entre 3 y 100 caracteres. La respuesta de creación es `201`;
+las operaciones de ciclo de vida devuelven el workspace actualizado. Las métricas
+se envuelven en `{ "data": ... }`. Los estados posibles son `creating`,
+`running`, `stopped`, `error` y `deleting`.
 
-Requiere rol `admin`. Registra una imagen disponible para workspaces.
+Los errores específicos de workspace incluyen:
 
-```json
-{
-    "name": "Ubuntu 24.04",
-    "image": "ubuntu:24.04",
-    "description": "Entorno base Ubuntu 24.04 LTS",
-    "icon": "/icons/ubuntu.svg",
-    "sort_order": 1,
-    "is_active": true
-}
-```
+- `WORKSPACE_NOT_FOUND` (`404`): el workspace no existe o no pertenece al usuario.
+- `WORKSPACE_CONTAINER_UNAVAILABLE` (`409`): no hay contenedor asociado o fue
+  eliminado externamente.
+- `WORKSPACE_CREATION` (`503`): no fue posible crear el workspace.
+- `WORKSPACE_OPERATION` (`503`): Docker no pudo iniciar, detener, reiniciar,
+  eliminar o consultar métricas.
+- `IMAGE_NOT_FOUND` (`422`): la imagen registrada no está disponible localmente
+  en Docker.
+- `DOCKER_UNAVAILABLE` (`503`): la API no pudo consultar o comunicarse con Docker.
 
-`sort_order` por defecto es `0` e `is_active` por defecto es `true`. `image` debe
-ser una referencia Docker válida, como `ubuntu:24.04`, `node:22-bookworm` o
-`registry.example.com/team/app:1.0.0`.
+## Imágenes de contenedor
 
-### `GET /container-images/:id`
+Todas las rutas requieren autenticación. Cualquier usuario puede listar y
+consultar imágenes activas; crear, actualizar y eliminar requiere `admin`.
+Los administradores también pueden ver imágenes inactivas.
 
-Obtiene una imagen por UUID. Los usuarios normales solo pueden consultar imágenes activas;
-los administradores también pueden consultar imágenes inactivas. Responde `200` con
-`{ "data": { ... } }`.
-**Errores:** `400` UUID inválido, `404` imagen inexistente o inactiva para un usuario normal.
+| Método   | Endpoint                | Descripción              |
+| -------- | ----------------------- | ------------------------ |
+| `GET`    | `/container-images`     | Lista catálogo visible   |
+| `POST`   | `/container-images`     | Crea imagen (admin)      |
+| `GET`    | `/container-images/:id` | Consulta imagen          |
+| `PATCH`  | `/container-images/:id` | Actualiza imagen (admin) |
+| `DELETE` | `/container-images/:id` | Elimina imagen (admin)   |
 
-### `PATCH /container-images/:id`
+El cuerpo de creación acepta `name`, `image`, `description`, `icon`,
+`sort_order` e `is_active`. `sort_order` por defecto es `0` e `is_active` por
+defecto es `true`. `image` debe ser una referencia Docker válida, por ejemplo
+`ubuntu:24.04` o `registry.example.com/team/app:1.0.0`. La actualización es
+parcial, pero requiere al menos un campo. Una referencia duplicada responde `409`.
 
-Requiere rol `admin`. Actualiza parcialmente `name`, `image`, `description`, `icon`,
-`sort_order` o `is_active`. Se requiere al menos un campo.
+## Códigos HTTP
 
-```json
-{
-    "description": "Imagen actualizada",
-    "is_active": false
-}
-```
+| Código | Significado                                               |
+| -----: | --------------------------------------------------------- |
+|  `200` | Operación exitosa                                         |
+|  `201` | Recurso creado                                            |
+|  `400` | Entrada inválida                                          |
+|  `401` | Falta autenticación o token inválido                      |
+|  `403` | Sin permisos, cuenta inactiva o token reutilizado         |
+|  `404` | Recurso no encontrado                                     |
+|  `405` | Método no permitido                                       |
+|  `409` | Conflicto, como email o imagen duplicados                 |
+|  `422` | Recurso válido pero no disponible para la operación       |
+|  `500` | Error interno                                             |
+|  `502` | Fallo al comunicarse con Docker o persistir una operación |
+|  `503` | Servicio Docker temporalmente no disponible               |
 
-No se permite cambiar `image` a una referencia ya registrada.
-**Errores:** `400` datos inválidos, `404` imagen inexistente, `409` referencia duplicada.
-
-### `DELETE /container-images/:id`
-
-Requiere rol `admin`. Elimina la imagen de forma permanente.
-
-```json
-{ "message": "Imagen de contenedor eliminada correctamente." }
-```
-
-**Errores:** `400` UUID inválido, `404` imagen inexistente, `500` si el borrado no
-afecta ninguna fila.
-
-## Codigos HTTP frecuentes
-
-| Codigo | Significado                                        |
-| -----: | -------------------------------------------------- |
-|  `200` | Operacion exitosa                                  |
-|  `400` | Body, query o parametro invalido                   |
-|  `401` | Falta autenticacion o el token no es valido        |
-|  `403` | Usuario autenticado sin permisos o cuenta inactiva |
-|  `404` | Recurso no encontrado                              |
-|  `409` | Conflicto, por ejemplo email duplicado             |
-|  `500` | Error interno o eliminacion sin filas afectadas    |
-
-## Ejemplo de cliente
+## Cliente TypeScript
 
 ```ts
 const response = await fetch(`${API_URL}/auth/login`, {
@@ -359,3 +209,5 @@ if (!response.ok) {
 
 const accessToken = data.accessToken;
 ```
+
+Hay ejemplos adicionales en [`../restclient/api-test.http`](../restclient/api-test.http).

@@ -1,25 +1,59 @@
-# CloudLab API
+# CloudLab
 
-API REST para gestionar usuarios, workspaces e imágenes de contenedores Docker.
+CloudLab es una aplicación para administrar usuarios, workspaces y catálogos de
+imágenes Docker. El repositorio contiene la API REST en `backend/` y una interfaz
+React/Vite independiente en `frontend/`.
 
-## Requisitos previos
+## Requisitos
 
-- Node.js 20 o superior
-- pnpm 12
-- MariaDB 10.6 o superior
-- Docker, si se utilizarán las funciones de contenedores
+- Node.js 20 o superior.
+- pnpm 12.15.0.
+- Docker y Docker Compose para MariaDB y las funciones de contenedores.
 
-## Instalación
+## Puesta en marcha
+
+### API
 
 ```bash
-git clone <URL_DEL_REPOSITORIO>
-cd CloudLab/backend
+cd backend
 pnpm install
+cp .env.example .env # si existe una plantilla local; también puedes crear .env manualmente
+pnpm dev
 ```
 
-## Configuración
+La API escucha en `http://APP_HOST:APP_PORT/api`. El proceso valida las variables
+de entorno al iniciar y termina si falta una variable obligatoria.
 
-Crea un archivo `.env` en `backend/` (no lo subas al repositorio):
+### Base de datos
+
+Define las variables usadas por Compose antes de iniciar MariaDB:
+
+```bash
+export DB_ROOT_PASSWORD='cambia-esta-clave'
+export DB_NAME='cloudlab'
+export DB_USER='cloudlab'
+export DB_PASSWORD='cambia-esta-clave'
+docker compose up -d mariadb
+```
+
+El servicio publica MariaDB únicamente en `127.0.0.1:3306` y conserva sus datos
+en el volumen `mariadb_data`. Los scripts de `db/init/` se ejecutan solamente
+cuando el volumen se inicializa por primera vez.
+
+### Frontend
+
+```bash
+cd frontend
+pnpm install
+pnpm dev
+```
+
+El frontend actual es el scaffold inicial de React + Vite; todavía no consume la
+API de CloudLab.
+
+## Variables de entorno de la API
+
+Crea `backend/.env` y no lo subas al repositorio:
 
 ```dotenv
 NODE_ENV=development
@@ -27,59 +61,76 @@ LOG_LEVEL=info
 LOG_FORMAT=text
 APP_HOST=localhost
 APP_PORT=8000
+FRONTEND_URL=http://localhost:5173
 DB_HOST=localhost
 DB_USER=cloudlab
-DB_PASSWORD=tu contraseña
+DB_PASSWORD=tu-clave
 DB_NAME=cloudlab
-JWT_SECRET=un secreto largo para access tokens
-JWT_REFRESH_SECRET=otro secreto largo para refresh tokens
+JWT_SECRET=secreto-largo-para-access-tokens
+JWT_REFRESH_SECRET=secreto-distinto-para-refresh-tokens
 JWT_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
 MAX_REFRESH_TOKENS_PER_USER=5
 ```
 
-La base de datos debe contener las tablas requeridas por la aplicación. Las variables de
-entorno se validan al iniciar; los secretos y credenciales no deben registrarse ni compartirse.
-`LOG_LEVEL` acepta `debug`, `info`, `warn` o `error`; `LOG_FORMAT` acepta `text` o `json`.
-El formato JSON facilita la integración con agregadores de logs en producción.
+`NODE_ENV` acepta `development`, `production` o `test`; `LOG_LEVEL` acepta
+`debug`, `info`, `warn` y `error`; `LOG_FORMAT` acepta `text` y `json`.
+Las duraciones JWT usan un número seguido de `ms`, `s`, `m`, `h`, `d`, `w` o `y`.
 
-## Ejecución
+## Scripts
 
-```bash
-pnpm dev       # desarrollo con recarga automática
-pnpm build     # compilación TypeScript en dist/
-pnpm start     # ejecución de la compilación
-```
+Desde `backend/`:
 
-## Tests
+| Comando             | Uso                                 |
+| ------------------- | ----------------------------------- |
+| `pnpm dev`          | API con recarga automática          |
+| `pnpm build`        | Compilar TypeScript en `dist/`      |
+| `pnpm start`        | Ejecutar la compilación             |
+| `pnpm typecheck`    | Comprobar tipos sin emitir archivos |
+| `pnpm test`         | Ejecutar Vitest                     |
+| `pnpm lint`         | Ejecutar Oxlint                     |
+| `pnpm format:check` | Comprobar formato                   |
+| `pnpm check`        | Tipos, lint, formato y pruebas      |
 
-```bash
-pnpm test
-pnpm exec vitest run tests/user-controller.test.ts
-pnpm typecheck
-```
+Desde `frontend/`:
 
-Los tests unitarios mockean los repositorios y no requieren una conexión real a MariaDB.
+| Comando        | Uso                               |
+| -------------- | --------------------------------- |
+| `pnpm dev`     | Servidor de desarrollo Vite       |
+| `pnpm build`   | Comprobar tipos y generar `dist/` |
+| `pnpm lint`    | Ejecutar Oxlint                   |
+| `pnpm preview` | Servir la compilación localmente  |
 
-## Catálogo de imágenes
+## Arquitectura
 
-La tabla `container_images` contiene las imágenes Docker que los usuarios pueden
-seleccionar al crear un workspace. El script base para MariaDB puede ejecutarse con:
+La API sigue las capas `routes -> controllers -> repositories -> base de datos`.
+La autenticación usa access tokens JWT y refresh tokens en una cookie HTTP-only.
+La validación de cuerpos y parámetros se realiza con Zod; los errores se traducen
+a respuestas HTTP mediante el middleware global.
 
-```sql
-CREATE TABLE container_images (
-    id CHAR(36) NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    image VARCHAR(255) NOT NULL,
-    description TEXT NULL,
-    icon VARCHAR(255) NULL,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    sort_order INT NOT NULL DEFAULT 0,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (id),
-    UNIQUE KEY uq_container_images_image (image),
-    INDEX idx_container_images_active_order (is_active, sort_order)
-);
-```
+- `src/routes/`: rutas y métodos permitidos.
+- `src/controllers/`: handlers HTTP.
+- `src/services/`: lógica de workspaces y Docker.
+- `src/repositories/`: contratos y persistencia MariaDB.
+- `src/schemas/`: validación de entrada.
+- `src/docker/`: cliente y operaciones Docker.
+- `doc/README.md`: contrato detallado para consumidores de la API.
+- `openapi.yaml`: contrato OpenAPI 3.1 importable en Swagger, Postman o generadores.
+- `restclient/api-test.http`: ejemplos ejecutables desde un cliente REST.
+- `tests/README.md`: convenciones y alcance de las pruebas.
+
+## API
+
+La documentación de endpoints, autenticación, permisos, cuerpos y errores está en
+[`doc/README.md`](doc/README.md). Las rutas principales son:
+
+- `/api/auth`: login, refresh, logout, perfil y cambio de contraseña.
+- `/api/workspaces`: workspaces del usuario y operaciones Docker.
+- `/api/container-images`: catálogo de imágenes.
+- `/api/admin`: administración de usuarios y workspaces.
+
+## Seguridad
+
+No registres contraseñas, hashes ni tokens. Usa secretos JWT diferentes y
+suficientemente largos en cada entorno. Las consultas SQL deben permanecer
+parametrizadas y el archivo `.env` debe mantenerse fuera del control de versiones.
