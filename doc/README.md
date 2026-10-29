@@ -1,6 +1,6 @@
 # Contrato HTTP de CloudLab
 
-Base URL local: `http://<APP_HOST>:<APP_PORT>/api`. Con la configuración
+Base URL local: `http://<APP_HOST>/api`. Con la configuración
 predeterminada es `http://localhost:8000/api`. Los endpoints de este documento
 se muestran sin el prefijo `/api`.
 

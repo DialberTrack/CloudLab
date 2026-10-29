@@ -18,6 +18,7 @@
         ".idea",
         ".env",
         "docker-compose.yml",
-        "db.json"
+        "db.json",
+        "openapi.yaml"
     ]
 }
