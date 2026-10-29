@@ -1,15 +1,19 @@
 import type { ResultSetHeader, RowDataPacket } from 'mysql2';
 import pool from '../../config/mariadb.config.js';
 import { WorkspaceNotFoundError } from '../../errors/workspace.error.js';
-import type { Workspace } from '../../schemas/workspaces.schema.js';
+import type { WorkspaceUpdateInput } from '../../schemas/workspaces.schema.js';
 import { ListUtils, type ListQuery } from '../../utils/list.utils.js';
 import type {
-    CreateWorkspaceRecord,
+    CreateWorkspacePersistence,
+    WorkspaceDetails,
     WorkspaceList,
+    WorkspaceListItem,
     WorkspaceRepository,
 } from '../workspace.repository.js';
 
-type WorkspaceRow = Workspace & RowDataPacket;
+type WorkspaceListRow = WorkspaceListItem & RowDataPacket;
+type WorkspaceDetailsRow = WorkspaceDetails & RowDataPacket;
+type WorkspaceCountRow = { total: number } & RowDataPacket;
 
 export class MariaDBWorkspaceRepository implements WorkspaceRepository {
     async listByUser(userId: string, { limit, page, q }: ListQuery): Promise<WorkspaceList> {
@@ -25,7 +29,7 @@ export class MariaDBWorkspaceRepository implements WorkspaceRepository {
         const offset = ListUtils.getOffset({ page, limit });
 
         const [countResult, workspacesResult] = await Promise.all([
-            pool.query<Array<{ total: number } & RowDataPacket>>(
+            pool.query<WorkspaceCountRow[]>(
                 `
             SELECT COUNT(*) AS total
             FROM workspaces AS w
@@ -33,7 +37,7 @@ export class MariaDBWorkspaceRepository implements WorkspaceRepository {
             `,
                 searchParams
             ),
-            pool.query<WorkspaceRow[]>(
+            pool.query<WorkspaceListRow[]>(
                 `
             SELECT
                 w.id,
@@ -77,7 +81,7 @@ export class MariaDBWorkspaceRepository implements WorkspaceRepository {
         const offset = ListUtils.getOffset({ page, limit });
 
         const [countResult, workspacesResult] = await Promise.all([
-            pool.query<Array<{ total: number } & RowDataPacket>>(
+            pool.query<WorkspaceCountRow[]>(
                 `
             SELECT COUNT(*) AS total
             FROM workspaces AS w
@@ -87,7 +91,7 @@ export class MariaDBWorkspaceRepository implements WorkspaceRepository {
             `,
                 searchParams
             ),
-            pool.query<WorkspaceRow[]>(
+            pool.query<WorkspaceListRow[]>(
                 `
             SELECT
                 w.id,
@@ -119,35 +123,38 @@ export class MariaDBWorkspaceRepository implements WorkspaceRepository {
         };
     }
 
-    async create(workspace: CreateWorkspaceRecord): Promise<Workspace> {
+    async create(workspace: CreateWorkspacePersistence): Promise<WorkspaceDetails> {
         await pool.query<ResultSetHeader>('INSERT INTO workspaces SET ?', [workspace]);
 
         return this.getById(workspace.id);
     }
 
-    async findById(id: string): Promise<Workspace | null> {
-        const [rows] = await pool.query<WorkspaceRow[]>(
+    async findById(id: string, ownerId?: string): Promise<WorkspaceDetails | null> {
+        const ownerCondition = ownerId ? 'AND w.user_id = ?' : '';
+        const params = ownerId ? [id, ownerId] : [id];
+        const [rows] = await pool.query<WorkspaceDetailsRow[]>(
             `
             SELECT
                 w.id,
                 w.name,
                 w.status,
+                w.container_id,
                 w.created_at,
                 ci.name AS image_name,
                 ci.image AS image
             FROM workspaces AS w
             INNER JOIN container_images AS ci
                 ON w.container_image_id = ci.id
-            WHERE w.id = ?
+            WHERE w.id = ? ${ownerCondition}
             `,
-            [id]
+            params
         );
 
         return rows[0] ?? null;
     }
 
-    async getById(id: string): Promise<Workspace> {
-        const workspace = await this.findById(id);
+    async getById(id: string, ownerId?: string): Promise<WorkspaceDetails> {
+        const workspace = await this.findById(id, ownerId);
 
         if (workspace) {
             return workspace;
@@ -156,11 +163,25 @@ export class MariaDBWorkspaceRepository implements WorkspaceRepository {
         throw new WorkspaceNotFoundError();
     }
 
-    async delete(id: string): Promise<boolean> {
-        const [result] = await pool.query<ResultSetHeader>('DELETE FROM workspaces WHERE id = ?', [
-            id,
-        ]);
+    async delete(id: string, ownerId?: string): Promise<boolean> {
+        const ownerCondition = ownerId ? 'AND user_id = ?' : '';
+        const params = ownerId ? [id, ownerId] : [id];
+        const [result] = await pool.query<ResultSetHeader>(
+            `DELETE FROM workspaces WHERE id = ? ${ownerCondition}`,
+            params
+        );
 
         return result.affectedRows > 0;
+    }
+
+    async update(id: string, updates: WorkspaceUpdateInput): Promise<WorkspaceDetails> {
+        if (Object.keys(updates).length > 0) {
+            await pool.query<ResultSetHeader>('UPDATE workspaces SET ? WHERE id = ?', [
+                updates,
+                id,
+            ]);
+        }
+
+        return this.getById(id);
     }
 }

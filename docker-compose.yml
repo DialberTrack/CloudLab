@@ -1,0 +1,24 @@
+services:
+  mariadb:
+    image: mariadb:13.0.2
+    container_name: cloudlab-mariadb
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      TZ: America/Mexico_City
+    ports:
+      - '127.0.0.1:3306:3306'
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: [ 'CMD', 'healthcheck.sh', '--connect', '--innodb_initialized' ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mariadb_data:

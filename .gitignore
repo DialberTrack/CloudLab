@@ -1,5 +1,17 @@
 node_modules/
 .env
+.env.*
+!.env.example
 db.json
 src/bak/
 .github/
+
+dist/
+coverage/
+*.tsbuildinfo
+
+*.log
+
+respaldo*.sql
+*.dump
+db/init/*-datos.sql

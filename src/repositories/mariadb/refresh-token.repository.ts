@@ -1,6 +1,6 @@
 import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import pool from '../../config/mariadb.config.js';
-import type { CreateRefreshTokenDTO, RefreshToken } from '../../types/refresh-token.types.js';
+import type { CreateRefreshTokenInput, RefreshToken } from '../../types/refresh-token.types.js';
 import type { RefreshTokenRepository } from '../refres-token.repository.js';
 
 type RefreshTokenRow = RefreshToken & RowDataPacket;
@@ -13,7 +13,7 @@ export class MariaDBRefreshTokenRepository implements RefreshTokenRepository {
      * @returns {Promise<void>} Se completa tras insertar el token.
      * @throws {Error} Si MariaDB rechaza la insercion.
      */
-    async create(data: CreateRefreshTokenDTO): Promise<void> {
+    async create(data: CreateRefreshTokenInput): Promise<void> {
         await pool.query<ResultSetHeader>(
             `
             INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, user_agent, ip_address)

@@ -229,6 +229,8 @@ export class UserController {
 
         await UserRepository.update(id, { password: hashedPassword });
 
+        await RefreshTokenRepository.revokeAllTokensForUser(id);
+
         res.json({
             message: 'Contraseña restablecida exitosamente',
             user: {

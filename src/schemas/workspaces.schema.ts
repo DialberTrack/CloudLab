@@ -79,3 +79,6 @@ export const WorkspaceIdSchema = z.object({
 
 export type Workspace = z.infer<typeof WorkspaceSchema>;
 export type CreateWorkspaceInput = z.infer<typeof CreateWorkspaceSchema>;
+export type WorkspaceUpdateInput = Partial<
+    Pick<Workspace, 'container_id' | 'port' | 'status' | 'vnc_password' | 'error_message'>
+>;

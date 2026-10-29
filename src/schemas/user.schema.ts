@@ -81,3 +81,7 @@ export const UserIdSchema = z.object({
 
 export type User = z.infer<typeof userSchema>;
 export type CreateUserInput = z.infer<typeof CreateUserSchema>;
+export type UpdateUserInput = z.infer<typeof UpdateUserSchema>;
+export type UserUpdatePersistenceInput = Partial<
+    Pick<User, 'name' | 'email' | 'password' | 'role' | 'is_active'>
+>;

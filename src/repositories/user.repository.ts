@@ -1,4 +1,4 @@
-import type { CreateUserInput, User } from '../schemas/user.schema.js';
+import type { CreateUserInput, User, UserUpdatePersistenceInput } from '../schemas/user.schema.js';
 import type { ListQuery, Pagination } from '../utils/list.utils.js';
 import { MariaDBUserRepository } from './mariadb/user.repository.js';
 
@@ -12,7 +12,7 @@ export interface UserRepository {
     getById(id: string): Promise<User>;
     findByEmail(email: string): Promise<User | null>;
     getByEmail(email: string): Promise<User>;
-    update(id: string, user: Partial<User>): Promise<User | null>;
+    update(id: string, user: UserUpdatePersistenceInput): Promise<User | null>;
     list({ page, limit, q }: ListQuery): Promise<UserList>;
     create(user: CreateUserInput): Promise<User>;
     delete(id: string): Promise<boolean>;

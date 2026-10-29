@@ -11,9 +11,13 @@
     "ignorePatterns": [
         "node_modules",
         "dist",
-        "coverage",
-        "package-lock.json",
         "yarn.lock",
-        "pnpm-lock.yaml"
+        "pnpm-lock.yaml",
+        ".git",
+        ".vscode",
+        ".idea",
+        ".env",
+        "docker-compose.yml",
+        "db.json"
     ]
 }

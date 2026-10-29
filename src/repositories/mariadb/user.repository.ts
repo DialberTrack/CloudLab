@@ -1,7 +1,11 @@
 import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import pool from '../../config/mariadb.config.js';
 import { UserNotFoundError } from '../../errors/user.error.js';
-import type { CreateUserInput, User } from '../../schemas/user.schema.js';
+import type {
+    CreateUserInput,
+    User,
+    UserUpdatePersistenceInput,
+} from '../../schemas/user.schema.js';
 import { ListUtils, type ListQuery } from '../../utils/list.utils.js';
 import type { UserList, UserRepository } from '../user.repository.js';
 
@@ -78,7 +82,7 @@ export class MariaDBUserRepository implements UserRepository {
      * @returns {Promise<User | null>} Usuario actualizado o `null` si desaparecio antes de leerlo.
      * @throws {Error} Si MariaDB rechaza la actualizacion o la consulta posterior.
      */
-    async update(id: string, user: Partial<User>): Promise<User | null> {
+    async update(id: string, user: UserUpdatePersistenceInput): Promise<User | null> {
         if (Object.keys(user).length > 0) {
             await pool.query('UPDATE users SET ? WHERE id = ?', [user, id]);
         }

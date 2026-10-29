@@ -9,4 +9,4 @@ export interface RefreshToken {
     created_at: Date;
 }
 
-export type CreateRefreshTokenDTO = Omit<RefreshToken, 'is_revoked' | 'created_at'>;
+export type CreateRefreshTokenInput = Omit<RefreshToken, 'is_revoked' | 'created_at'>;
