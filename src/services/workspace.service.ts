@@ -15,6 +15,7 @@ import {
 import { ContainerImageRepository } from '../repositories/container-image.repository.js';
 import { WorkspaceRepository } from '../repositories/workspace.repository.js';
 import type { CreateWorkspaceInput } from '../schemas/workspaces.schema.js';
+import { getAvailablePort } from '../utils/app.utils.js';
 import { logger } from '../utils/logger.js';
 
 type CreateWorkspaceServiceInput = CreateWorkspaceInput & {
@@ -22,8 +23,8 @@ type CreateWorkspaceServiceInput = CreateWorkspaceInput & {
 };
 
 export class WorkspaceService {
-    static create = async (input: CreateWorkspaceServiceInput) => {
-        const { image } = await ContainerImageRepository.getById(input.container_image_id);
+    static create = async (input: CreateWorkspaceServiceInput, isAdmin: boolean) => {
+        const { image } = await ContainerImageRepository.getById(input.container_image_id, isAdmin);
         const id = crypto.randomUUID();
         let containerId: string | undefined;
 
@@ -34,12 +35,14 @@ export class WorkspaceService {
         });
 
         const vncPassword = crypto.randomBytes(8).toString('hex');
+        const freePort = await getAvailablePort({ min: 40000, max: 50000 });
 
         try {
             const container = await DockerService.createContainer({
                 workspaceId: id,
                 image: image,
                 vncPassword: vncPassword,
+                port: freePort.toString(),
             });
 
             containerId = container.Id;

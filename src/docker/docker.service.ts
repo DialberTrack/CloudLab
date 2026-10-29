@@ -14,6 +14,7 @@ export class DockerService {
         image,
         vncPassword,
         workspaceId,
+        port,
     }: CreateContainerOptions): Promise<ContainerInspectInfo> {
         const isImageAvailable = await this.isImageAvailable(image);
         if (!isImageAvailable) {
@@ -27,7 +28,7 @@ export class DockerService {
                 Env: [`VNC_PASSWORD=${vncPassword}`],
                 HostConfig: {
                     PortBindings: {
-                        '6901/tcp': [{ HostIp: '127.0.0.1', HostPort: '0' }],
+                        '6901/tcp': [{ HostIp: '127.0.0.1', HostPort: port }],
                     },
                 },
             });
@@ -43,6 +44,11 @@ export class DockerService {
     static async startContainer(containerId: string): Promise<ContainerInspectInfo> {
         try {
             const container = dockerClient.getContainer(containerId);
+            const currentState = await container.inspect();
+            if (currentState.State?.Running || currentState.State?.Restarting) {
+                return currentState;
+            }
+
             await container.start();
             return await container.inspect();
         } catch (error: unknown) {
@@ -53,6 +59,11 @@ export class DockerService {
     static async stopContainer(containerId: string): Promise<void> {
         try {
             const container = dockerClient.getContainer(containerId);
+            const currentState = await container.inspect();
+            if (!currentState.State?.Running && !currentState.State?.Restarting) {
+                return;
+            }
+
             await container.stop();
         } catch (error: unknown) {
             throw DockerService.toOperationError(error, 'No se pudo detener el contenedor.');
@@ -62,6 +73,11 @@ export class DockerService {
     static async restartContainer(containerId: string): Promise<void> {
         try {
             const container = dockerClient.getContainer(containerId);
+            const currentState = await container.inspect();
+            if (currentState.State?.Restarting) {
+                return;
+            }
+
             await container.restart();
         } catch (error: unknown) {
             throw DockerService.toOperationError(error, 'No se pudo reiniciar el contenedor.');

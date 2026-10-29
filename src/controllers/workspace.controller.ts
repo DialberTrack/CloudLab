@@ -30,10 +30,13 @@ export class WorkspaceController {
             throw new ValidationError(validation.error.issues);
         }
 
-        const workspace = await WorkspaceService.create({
-            ...validation.data,
-            user_id: req.user.id,
-        });
+        const workspace = await WorkspaceService.create(
+            {
+                ...validation.data,
+                user_id: req.user.id,
+            },
+            req.user.role === 'admin'
+        );
 
         res.status(201).json(workspace);
     });
