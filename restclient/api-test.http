@@ -321,12 +321,12 @@ Authorization: Bearer {{user_token}}
 ### Crear workspace: la API crea e inicia el contenedor
 # @name createWorkspace
 POST {{base_url}}/workspaces
-Authorization: Bearer {{user_token}}
+Authorization: Bearer {{admin_token_login_again}}
 Content-Type: application/json
 
 {
-    "name": "Workspace API Test",
-    "container_image_id": "{{image_id}}"
+    "name": "Workspace Test",
+    "container_image_id": "035880cd-d35f-11f1-a9d8-febbcf594172"
 }
 
 ###
@@ -393,3 +393,7 @@ Authorization: Bearer {{admin_token_login_again}}
 ### Ruta inexistente: debe responder 404
 GET {{base_url}}/ruta-que-no-existe
 Authorization: Bearer {{admin_token_login_again}}
+
+###
+POST {{base_url}}/auth/login
+Origin: http://linkmalo.com/

@@ -25,7 +25,7 @@ export class DockerService {
             const container = await dockerClient.createContainer({
                 Image: image,
                 name: `cloudlab-${workspaceId}`,
-                Env: [`VNC_PASSWORD=${vncPassword}`],
+                Env: [`VNC_PW=${vncPassword}`],
                 HostConfig: {
                     PortBindings: {
                         '6901/tcp': [{ HostIp: '127.0.0.1', HostPort: port }],
