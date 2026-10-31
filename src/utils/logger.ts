@@ -25,6 +25,7 @@ const levelStyles: Record<LogLevel, Parameters<typeof styleText>[0]> = {
 };
 const timestampStyle: Parameters<typeof styleText>[0] = 'yellow';
 
+/** Serializa el contexto adicional de un registro. */
 const serializeContext = (context: LogContext | undefined): string => {
     if (!context || Object.keys(context).length === 0) {
         return '';
@@ -37,6 +38,7 @@ const serializeContext = (context: LogContext | undefined): string => {
     )}`;
 };
 
+/** Escribe un registro con el nivel y formato configurados. */
 const write = (level: LogLevel, message: string, context?: LogContext): void => {
     if (levels[level] < levels[minimumLevel]) {
         return;

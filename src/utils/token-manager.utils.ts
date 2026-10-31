@@ -31,7 +31,7 @@ const refreshTokenPayload = (
 });
 
 export class TokenManager {
-    /** Genera un JWT de acceso con identidad y rol del usuario. */
+    /** Genera un JWT de acceso. */
     public static generateAccessToken(user: User): string {
         const options: jwt.SignOptions = {
             expiresIn: getJwtStringValue(env.JWT_EXPIRES_IN),
@@ -40,7 +40,7 @@ export class TokenManager {
         return jwt.sign(accessTokenPayload(user), env.JWT_SECRET, options);
     }
 
-    /** Genera un JWT de refresh y un JTI para persistir su sesion. */
+    /** Genera un JWT de refresh y su JTI. */
     public static generateRefreshToken(user: User): { refreshToken: string; jti: string } {
         const jti = crypto.randomUUID();
 
@@ -56,7 +56,7 @@ export class TokenManager {
         return { refreshToken, jti };
     }
 
-    /** Verifica firma y estructura de un access token; devuelve `null` si es invalido. */
+    /** Verifica la firma y estructura de un access token. */
     public static verifyAccessToken(token: string): AccessTokenPayload | null {
         try {
             const payload = jwt.verify(token, env.JWT_SECRET);
@@ -75,7 +75,7 @@ export class TokenManager {
         }
     }
 
-    /** Verifica firma y estructura de un refresh token; devuelve `null` si es invalido. */
+    /** Verifica la firma y estructura de un refresh token. */
     public static verifyRefreshToken(token: string): RefreshTokenPayload | null {
         try {
             const payload = jwt.verify(token, env.JWT_REFRESH_SECRET);
@@ -94,7 +94,7 @@ export class TokenManager {
         }
     }
 
-    /** Calcula el SHA-256 hexadecimal usado para persistir refresh tokens. */
+    /** Calcula el hash SHA-256 de un refresh token. */
     public static hashToken(token: string): string {
         const hash = crypto.createHash('sha256').update(token).digest('hex');
         return hash;

@@ -35,6 +35,11 @@ workspaceRoutes
     .all(methodNotAllowed(['POST']));
 
 workspaceRoutes
+    .route('/:id/retry')
+    .post(WorkspaceController.retry)
+    .all(methodNotAllowed(['POST']));
+
+workspaceRoutes
     .route('/:id/metrics')
     .get(WorkspaceController.metrics)
     .all(methodNotAllowed(['GET']));

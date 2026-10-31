@@ -8,22 +8,12 @@ import { InvalidCredentialsError, UserInactiveError } from '../errors/user.error
 import {
     refreshCookieOptions,
     RefreshTokenRepository,
-} from '../repositories/refres-token.repository.js';
+} from '../repositories/refresh-token.repository.js';
 import { UserRepository } from '../repositories/user.repository.js';
 import { LoginSchema } from '../schemas/user.schema.js';
 import { TokenManager } from '../utils/token-manager.utils.js';
 export class AuthController {
-    /**
-     * Autentica credenciales y crea una sesion con access token y refresh token.
-     *
-     * @endpoint POST /api/auth/login
-     * @param req Request con correo y contrasena.
-     * @param res Response de Express.
-     * @returns {Promise<void>} Responde con el access token y una cookie HTTP-only.
-     * @throws {ValidationError} Si las credenciales no cumplen el esquema.
-     * @throws {InvalidCredentialsError} Si el correo o la contrasena no son validos.
-     * @throws {UserInactiveError} Si la cuenta esta inactiva.
-     */
+    /** Autentica credenciales y crea una sesion. */
     static login: RequestHandler = async (req, res) => {
         const validation = LoginSchema.safeParse(req.body);
         if (!validation.success) {
@@ -74,15 +64,7 @@ export class AuthController {
         });
     };
 
-    /**
-     * Revoca el refresh token presentado y limpia la cookie de sesion.
-     *
-     * @endpoint POST /api/auth/logout
-     * @param req Request que puede contener la cookie `refreshToken`.
-     * @param res Response de Express.
-     * @returns {Promise<void>} Responde confirmando el cierre de sesion.
-     * @throws {Error} Si falla la revocacion persistida.
-     */
+    /** Revoca el refresh token y limpia la cookie de sesion. */
     static logout: RequestHandler = async (req, res) => {
         const refreshToken = req.cookies.refreshToken;
 
@@ -97,17 +79,7 @@ export class AuthController {
         res.json({ message: 'Sesión cerrada correctamente' });
     };
 
-    /**
-     * Valida, rota y persiste un refresh token de sesion.
-     *
-     * @endpoint POST /api/auth/refresh
-     * @param req Request con la cookie `refreshToken`.
-     * @param res Response de Express.
-     * @returns {Promise<void>} Responde con un nuevo access token y cookie.
-     * @throws {UnauthenticatedError} Si falta, expiro, fue manipulado o ya fue revocado.
-     * @throws {ForbiddenError} Si se detecta reutilizacion de un token revocado.
-     * @throws {UserInactiveError} Si el usuario asociado esta inactivo o no existe.
-     */
+    /** Valida, rota y persiste un refresh token. */
     static refresh: RequestHandler = async (req, res) => {
         const refreshToken = req.cookies.refreshToken;
 

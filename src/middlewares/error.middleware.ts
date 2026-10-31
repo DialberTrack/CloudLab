@@ -2,8 +2,8 @@ import type { ErrorRequestHandler } from 'express';
 import { AppError, ValidationError } from '../errors/app.error.js';
 import { logger } from '../utils/logger.js';
 
+/** Middleware para manejar errores en la aplicación. */
 export const errorMiddleware: ErrorRequestHandler = (err, req, res, next) => {
-    // Let Express handle errors when the response has already started.
     if (res.headersSent) {
         return next(err);
     }

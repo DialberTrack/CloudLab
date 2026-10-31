@@ -6,11 +6,7 @@ export interface PortRange {
     max: number;
 }
 
-/**
- * Obtiene un puerto libre y confiable de forma aleatoria dentro de un rango especificado.
- * @param options Objeto con el puerto mínimo y máximo del rango (ej. { min: 4000, max: 5000 })
- * @returns Promesa que resuelve con el número de puerto libre encontrado.
- */
+/** Obtiene un puerto libre dentro de un rango. */
 export async function getAvailablePort({ min, max }: PortRange): Promise<number> {
     if (!Number.isInteger(min) || !Number.isInteger(max) || min < 1 || max > 65535 || min > max) {
         throw new RangeError('El rango de puertos debe estar entre 1 y 65535.');

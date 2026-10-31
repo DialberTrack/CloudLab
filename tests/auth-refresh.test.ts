@@ -22,7 +22,7 @@ vi.mock('../src/repositories/refres-token.repository.js', () => ({
     refreshCookieOptions: {
         httpOnly: true,
         secure: false,
-        sameSite: 'strict',
+        sameSite: 'lax',
         path: '/api/auth',
         maxAge: 0,
     },
@@ -93,7 +93,7 @@ describe('AuthController.refresh', () => {
         expect(res.cookie.mock.calls[0][0]).toBe('refreshToken');
         expect(res.cookie.mock.calls[0][2]).toMatchObject({
             httpOnly: true,
-            sameSite: 'strict',
+            sameSite: 'lax',
             path: '/api/auth',
             maxAge: expect.any(Number),
         });

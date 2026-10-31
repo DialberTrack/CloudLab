@@ -4,12 +4,7 @@ import { UserRepository } from '../repositories/user.repository.js';
 import { TokenManager } from '../utils/token-manager.utils.js';
 
 export class AuthMiddleware {
-    /**
-     * Valida el token Bearer y carga los datos del usuario activo en `req.user`.
-     *
-     * @throws {UnauthenticatedError} Si el token falta, es invalido o pertenece
-     * a un usuario inexistente o inactivo.
-     */
+    /** Valida el token y carga el usuario activo en `req.user`. */
     static authenticate: RequestHandler = async (req, res, next) => {
         const authHeader = req.headers.authorization;
 
@@ -40,12 +35,7 @@ export class AuthMiddleware {
         return next();
     };
 
-    /**
-     * Permite el acceso únicamente a usuarios con rol `admin`.
-     *
-     * @throws {UnauthenticatedError} Si no hay un usuario autenticado.
-     * @throws {ForbiddenError} Si el usuario autenticado no es administrador.
-     */
+    /** Permite el acceso únicamente a administradores. */
     static authorizeAdmin: RequestHandler = (req, res, next) => {
         if (!req.user) {
             throw new UnauthenticatedError();

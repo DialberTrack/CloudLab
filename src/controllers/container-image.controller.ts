@@ -13,32 +13,14 @@ import {
 import { authed } from '../types/auth-request.js';
 
 export class ContainerImageController {
-    /**
-     * Lista imágenes activas para usuarios y todas las imágenes para administradores.
-     *
-     * @endpoint GET /api/container-images
-     * @param req Request de Express.
-     * @param res Response de Express.
-     * @returns {Promise<void>} Responde con la lista de imágenes de contenedor.
-     * @throws {AppError} Si falla el repositorio.
-     */
+    /** Lista imágenes activas o todas para administradores. */
     static list: RequestHandler = authed(async (req, res) => {
         const includeInactive = req.user.role === 'admin';
         const containerImages = await ContainerImageRepository.list(includeInactive);
         res.json({ data: containerImages });
     });
 
-    /**
-     * Crea una nueva imagen de contenedor.
-     *
-     * @endpoint POST /api/container-images
-     * @param req Request con los datos de la imagen de contenedor.
-     * @param res Response de Express.
-     * @returns {Promise<void>} Responde con la imagen de contenedor creada.
-     * @throws {ValidationError} Si los datos no cumplen el esquema.
-     * @throws {ImageAlreadyExistsError} Si la imagen ya existe.
-     * @throws {AppError} Si falla el repositorio.
-     */
+    /** Crea una nueva imagen de contenedor. */
     static create: RequestHandler = authed(async (req, res) => {
         const validation = CreateContainerImageSchema.safeParse(req.body);
         if (!validation.success) {
@@ -55,16 +37,7 @@ export class ContainerImageController {
         res.json({ data: containerImage });
     });
 
-    /**
-     * Obtiene una imagen por su identificador.
-     *
-     * @endpoint GET /api/container-images/:id
-     * @param req Request con el ID de la imagen.
-     * @param res Response de Express.
-     * @returns {Promise<void>} Responde con la imagen de contenedor solicitada.
-     * @throws {ValidationError} Si el ID no es válido.
-     * @throws {ImageNotFoundError} Si la imagen no existe.
-     */
+    /** Obtiene una imagen por su identificador. */
     static get: RequestHandler = authed(async (req, res) => {
         const validation = ContainerImageIdSchema.safeParse(req.params);
         if (!validation.success) {
@@ -77,15 +50,7 @@ export class ContainerImageController {
         res.json({ data: containerImage });
     });
 
-    /** Actualiza una imagen registrada.
-     *
-     * @endpoint PATCH /api/container-images/:id
-     * @param req Request con los datos de la imagen de contenedor a actualizar.
-     * @param res Response de Express.
-     * @returns {Promise<void>} Responde con la imagen de contenedor actualizada.
-     * @throws {ValidationError} Si los datos no cumplen el esquema.
-     * @throws {ImageNotFoundError} Si la imagen no existe.
-     */
+    /** Actualiza una imagen de contenedor registrada. */
     static update: RequestHandler = authed(async (req, res) => {
         const idValidation = ContainerImageIdSchema.safeParse(req.params);
         if (!idValidation.success) {
@@ -117,16 +82,7 @@ export class ContainerImageController {
         res.json({ data: updatedContainerImage });
     });
 
-    /**
-     * Elimina una imagen de contenedor.
-     *
-     * @endpoint DELETE /api/container-images/:id
-     * @param req Request con el ID de la imagen a eliminar.
-     * @param res Response de Express.
-     * @returns {Promise<void>} Responde con un mensaje de éxito o error.
-     * @throws {ValidationError} Si el ID no es válido.
-     * @throws {ContainerImageDeletionError} Si no se puede eliminar la imagen.
-     */
+    /** Elimina una imagen de contenedor. */
     static delete: RequestHandler = authed(async (req, res) => {
         const validation = ContainerImageIdSchema.safeParse(req.params);
         if (!validation.success) {

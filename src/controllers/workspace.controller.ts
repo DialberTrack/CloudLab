@@ -7,7 +7,7 @@ import { authed } from '../types/auth-request.js';
 import { ListUtils } from '../utils/list.utils.js';
 
 export class WorkspaceController {
-    /** GET /api/workspaces. Lista los workspaces disponibles para el usuario. */
+    /** Lista los workspaces disponibles para el usuario. */
     static list: RequestHandler = authed(async (req, res) => {
         const query = ListUtils.parseQuery(req.query);
         const workspaces = await WorkspaceRepository.listByUser(req.user.id, query);
@@ -15,7 +15,7 @@ export class WorkspaceController {
         res.json(workspaces);
     });
 
-    /** GET /api/admin/workspaces. Lista todos los workspaces. */
+    /** Lista todos los workspaces. */
     static listAll: RequestHandler = authed(async (req, res) => {
         const query = ListUtils.parseQuery(req.query);
         const workspaces = await WorkspaceRepository.listAll(query);
@@ -23,7 +23,7 @@ export class WorkspaceController {
         res.json(workspaces);
     });
 
-    /** POST /api/workspaces. Crea un workspace con los datos recibidos. */
+    /** Crea un workspace con los datos recibidos. */
     static create: RequestHandler = authed(async (req, res) => {
         const validation = CreateWorkspaceSchema.safeParse(req.body);
         if (!validation.success) {
@@ -41,71 +41,89 @@ export class WorkspaceController {
         res.status(201).json(workspace);
     });
 
-    /** GET /api/workspaces/:id. Obtiene un workspace por su identificador. */
+    /** Obtiene un workspace por su identificador. */
     static get: RequestHandler = authed(async (req, res) => {
         const validation = WorkspaceIdSchema.safeParse(req.params);
         if (!validation.success) {
             throw new ValidationError(validation.error.issues);
         }
 
-        const workspace = await WorkspaceRepository.getById(validation.data.id, req.user.id);
+        const ownerId = req.user.role === 'admin' ? undefined : req.user.id;
+        const workspace = await WorkspaceRepository.getById(validation.data.id, ownerId);
 
         res.json(workspace);
     });
 
-    /** DELETE /api/workspaces/:id. Elimina un workspace existente. */
+    /** Elimina un workspace existente. */
     static delete: RequestHandler = authed(async (req, res) => {
         const validation = WorkspaceIdSchema.safeParse(req.params);
         if (!validation.success) {
             throw new ValidationError(validation.error.issues);
         }
 
-        await WorkspaceService.delete(validation.data.id, req.user.id);
+        const ownerId = req.user.role === 'admin' ? undefined : req.user.id;
+        await WorkspaceService.delete(validation.data.id, ownerId);
 
         res.send({ message: 'Workspace eliminado correctamente' });
     });
 
-    /** POST /api/workspaces/:id/start. Inicia los recursos del workspace. */
+    /** Inicia los recursos del workspace. */
     static start: RequestHandler = authed(async (req, res) => {
         const validation = WorkspaceIdSchema.safeParse(req.params);
         if (!validation.success) {
             throw new ValidationError(validation.error.issues);
         }
 
-        const workspace = await WorkspaceService.start(validation.data.id, req.user.id);
+        const ownerId = req.user.role === 'admin' ? undefined : req.user.id;
+        const workspace = await WorkspaceService.start(validation.data.id, ownerId);
         res.json(workspace);
     });
 
-    /** POST /api/workspaces/:id/stop. Detiene los recursos del workspace. */
+    /** Detiene los recursos del workspace. */
     static stop: RequestHandler = authed(async (req, res) => {
         const validation = WorkspaceIdSchema.safeParse(req.params);
         if (!validation.success) {
             throw new ValidationError(validation.error.issues);
         }
 
-        const workspace = await WorkspaceService.stop(validation.data.id, req.user.id);
+        const ownerId = req.user.role === 'admin' ? undefined : req.user.id;
+        const workspace = await WorkspaceService.stop(validation.data.id, ownerId);
         res.json(workspace);
     });
 
-    /** POST /api/workspaces/:id/restart. Reinicia los recursos del workspace. */
+    /** Reinicia los recursos del workspace. */
     static restart: RequestHandler = authed(async (req, res) => {
         const validation = WorkspaceIdSchema.safeParse(req.params);
         if (!validation.success) {
             throw new ValidationError(validation.error.issues);
         }
 
-        const workspace = await WorkspaceService.restart(validation.data.id, req.user.id);
+        const ownerId = req.user.role === 'admin' ? undefined : req.user.id;
+        const workspace = await WorkspaceService.restart(validation.data.id, ownerId);
         res.json(workspace);
     });
 
-    /** GET /api/workspaces/:id/metrics. Consulta las métricas del workspace. */
+    /** Reintenta la operación de un workspace en error. */
+    static retry: RequestHandler = authed(async (req, res) => {
+        const validation = WorkspaceIdSchema.safeParse(req.params);
+        if (!validation.success) {
+            throw new ValidationError(validation.error.issues);
+        }
+
+        const ownerId = req.user.role === 'admin' ? undefined : req.user.id;
+        const workspace = await WorkspaceService.retry(validation.data.id, ownerId);
+        res.json(workspace);
+    });
+
+    /** Consulta las métricas del workspace. */
     static metrics: RequestHandler = authed(async (req, res) => {
         const validation = WorkspaceIdSchema.safeParse(req.params);
         if (!validation.success) {
             throw new ValidationError(validation.error.issues);
         }
 
-        const metrics = await WorkspaceService.metrics(validation.data.id, req.user.id);
+        const ownerId = req.user.role === 'admin' ? undefined : req.user.id;
+        const metrics = await WorkspaceService.metrics(validation.data.id, ownerId);
         res.json({ data: metrics });
     });
 }

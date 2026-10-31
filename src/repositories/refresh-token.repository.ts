@@ -14,8 +14,8 @@ export interface RefreshTokenRepository {
 export const refreshCookieOptions = {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
-    sameSite: 'strict' as const,
-    path: '/api/auth',
+    sameSite: 'lax' as const,
+    path: '/',
     maxAge: env.JWT_REFRESH_COOKIE_MAX_AGE_MS,
 };
 

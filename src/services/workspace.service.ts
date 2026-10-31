@@ -22,11 +22,17 @@ type CreateWorkspaceServiceInput = CreateWorkspaceInput & {
     user_id: string;
 };
 
+type ProvisionedContainer = {
+    id: string;
+    vncPassword: string;
+    port: number | null;
+};
+
 export class WorkspaceService {
+    /** Crea un workspace y su contenedor Docker. */
     static create = async (input: CreateWorkspaceServiceInput, isAdmin: boolean) => {
         const { image } = await ContainerImageRepository.getById(input.container_image_id, isAdmin);
         const id = crypto.randomUUID();
-        let containerId: string | undefined;
 
         await WorkspaceRepository.create({
             ...input,
@@ -34,38 +40,16 @@ export class WorkspaceService {
             status: 'creating',
         });
 
-        const vncPassword = crypto.randomBytes(8).toString('hex');
-        const freePort = await getAvailablePort({ min: 40000, max: 50000 });
-
         try {
-            const container = await DockerService.createContainer({
-                workspaceId: id,
-                image: image,
-                vncPassword: vncPassword,
-                port: freePort.toString(),
-            });
-
-            containerId = container.Id;
-            const startedContainer = await DockerService.startContainer(containerId);
+            const provisionedContainer = await WorkspaceService.provisionContainer(id, image);
 
             return WorkspaceRepository.update(id, {
                 status: 'running',
-                vnc_password: vncPassword,
-                container_id: containerId,
-                port: WorkspaceService.getPublishedPort(startedContainer),
+                vnc_password: provisionedContainer.vncPassword,
+                container_id: provisionedContainer.id,
+                port: provisionedContainer.port,
             });
         } catch (error: unknown) {
-            if (containerId) {
-                try {
-                    await DockerService.removeContainer(containerId);
-                } catch (cleanupError: unknown) {
-                    logger.error('No se pudo limpiar el contenedor tras un fallo.', {
-                        containerId,
-                        error: cleanupError,
-                    });
-                }
-            }
-
             try {
                 await WorkspaceRepository.update(id, {
                     status: 'error',
@@ -94,8 +78,9 @@ export class WorkspaceService {
         }
     };
 
-    static async delete(id: string, userId: string): Promise<void> {
-        const workspace = await WorkspaceRepository.getById(id, userId);
+    /** Elimina un workspace y su contenedor Docker. */
+    static async delete(id: string, ownerId?: string): Promise<void> {
+        const workspace = await WorkspaceRepository.getById(id, ownerId);
 
         if (workspace.container_id) {
             await WorkspaceRepository.update(id, { status: 'deleting' });
@@ -110,14 +95,15 @@ export class WorkspaceService {
             }
         }
 
-        const deleted = await WorkspaceRepository.delete(id, userId);
+        const deleted = await WorkspaceRepository.delete(id, ownerId);
         if (!deleted) {
             throw new WorkspaceDeletionError();
         }
     }
 
-    static async start(id: string, userId: string) {
-        const workspace = await WorkspaceRepository.getById(id, userId);
+    /** Inicia el contenedor de un workspace. */
+    static async start(id: string, ownerId?: string) {
+        const workspace = await WorkspaceRepository.getById(id, ownerId);
         const containerId = WorkspaceService.requireContainerId(workspace.container_id);
         const container = await WorkspaceService.runDockerOperation(
             () => DockerService.startContainer(containerId),
@@ -131,8 +117,9 @@ export class WorkspaceService {
         });
     }
 
-    static async stop(id: string, userId: string) {
-        const workspace = await WorkspaceRepository.getById(id, userId);
+    /** Detiene el contenedor de un workspace. */
+    static async stop(id: string, ownerId?: string) {
+        const workspace = await WorkspaceRepository.getById(id, ownerId);
         const containerId = WorkspaceService.requireContainerId(workspace.container_id);
         await WorkspaceService.runDockerOperation(
             () => DockerService.stopContainer(containerId),
@@ -145,8 +132,9 @@ export class WorkspaceService {
         });
     }
 
-    static async restart(id: string, userId: string) {
-        const workspace = await WorkspaceRepository.getById(id, userId);
+    /** Reinicia el contenedor de un workspace. */
+    static async restart(id: string, ownerId?: string) {
+        const workspace = await WorkspaceRepository.getById(id, ownerId);
         const containerId = WorkspaceService.requireContainerId(workspace.container_id);
         await WorkspaceService.runDockerOperation(
             () => DockerService.restartContainer(containerId),
@@ -159,8 +147,51 @@ export class WorkspaceService {
         });
     }
 
-    static async metrics(id: string, userId: string): Promise<ContainerStats> {
-        const workspace = await WorkspaceRepository.getById(id, userId);
+    /** Reintenta la operación de un workspace en error. */
+    static async retry(id: string, ownerId?: string) {
+        const workspace = await WorkspaceRepository.getById(id, ownerId);
+        if (workspace.status !== 'error') {
+            throw new WorkspaceOperationError(
+                'Solo se puede reintentar un workspace que esté en estado de error.'
+            );
+        }
+
+        if (workspace.container_id) {
+            return WorkspaceService.start(id, ownerId);
+        }
+
+        await WorkspaceRepository.update(id, {
+            status: 'creating',
+            error_message: null,
+        });
+
+        try {
+            const provisionedContainer = await WorkspaceService.provisionContainer(
+                id,
+                workspace.image
+            );
+
+            return WorkspaceRepository.update(id, {
+                status: 'running',
+                vnc_password: provisionedContainer.vncPassword,
+                container_id: provisionedContainer.id,
+                port: provisionedContainer.port,
+                error_message: null,
+            });
+        } catch (error: unknown) {
+            await WorkspaceService.markError(id, error);
+
+            if (error instanceof ImageNotFoundError || error instanceof DockerUnavailableError) {
+                throw error;
+            }
+
+            throw new WorkspaceCreationError();
+        }
+    }
+
+    /** Consulta las metricas del contenedor de un workspace. */
+    static async metrics(id: string, ownerId?: string): Promise<ContainerStats> {
+        const workspace = await WorkspaceRepository.getById(id, ownerId);
         const containerId = WorkspaceService.requireContainerId(workspace.container_id);
 
         return WorkspaceService.runDockerOperation(
@@ -169,6 +200,7 @@ export class WorkspaceService {
         );
     }
 
+    /** Obtiene el ID del contenedor o lanza un error de disponibilidad. */
     private static requireContainerId(containerId: string | null | undefined): string {
         if (!containerId) {
             throw new WorkspaceContainerUnavailableError(
@@ -179,6 +211,47 @@ export class WorkspaceService {
         return containerId;
     }
 
+    /** Crea e inicia un contenedor para un workspace. */
+    private static async provisionContainer(
+        workspaceId: string,
+        image: string
+    ): Promise<ProvisionedContainer> {
+        const vncPassword = crypto.randomBytes(8).toString('hex');
+        const freePort = await getAvailablePort({ min: 40000, max: 50000 });
+        let containerId: string | undefined;
+
+        try {
+            const container = await DockerService.createContainer({
+                workspaceId,
+                image,
+                vncPassword,
+                port: freePort.toString(),
+            });
+            containerId = container.Id;
+            const startedContainer = await DockerService.startContainer(containerId);
+
+            return {
+                id: containerId,
+                vncPassword,
+                port: WorkspaceService.getPublishedPort(startedContainer),
+            };
+        } catch (error: unknown) {
+            if (containerId) {
+                try {
+                    await DockerService.removeContainer(containerId);
+                } catch (cleanupError: unknown) {
+                    logger.error('No se pudo limpiar el contenedor tras un fallo.', {
+                        containerId,
+                        error: cleanupError,
+                    });
+                }
+            }
+
+            throw error;
+        }
+    }
+
+    /** Ejecuta una operacion Docker y traduce sus errores. */
     private static async runDockerOperation<T>(
         operation: () => Promise<T>,
         message: string
@@ -190,6 +263,7 @@ export class WorkspaceService {
         }
     }
 
+    /** Convierte errores de Docker en errores del workspace. */
     private static toOperationError(error: unknown, fallbackMessage: string): Error {
         if (error instanceof DockerContainerNotFoundError) {
             return new WorkspaceContainerUnavailableError();
@@ -203,6 +277,7 @@ export class WorkspaceService {
         return new WorkspaceOperationError(fallbackMessage);
     }
 
+    /** Obtiene el puerto publicado por el contenedor. */
     private static getPublishedPort(container: ContainerInspectInfo): number | null {
         const binding = container.NetworkSettings?.Ports?.['6901/tcp']?.[0];
         const port = binding?.HostPort;
@@ -210,10 +285,16 @@ export class WorkspaceService {
         return port ? Number(port) : null;
     }
 
-    private static async markError(id: string, error: unknown): Promise<void> {
+    /** Marca un workspace como fallido y registra el error. */
+    private static async markError(
+        id: string,
+        error: unknown,
+        containerId?: string | null
+    ): Promise<void> {
         try {
             await WorkspaceRepository.update(id, {
                 status: 'error',
+                ...(containerId !== undefined ? { container_id: containerId } : {}),
                 error_message: 'No se pudo completar la operación del contenedor.',
             });
         } catch (updateError: unknown) {

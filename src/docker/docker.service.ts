@@ -10,6 +10,7 @@ import { dockerClient } from './docker.client.js';
 import type { CreateContainerOptions } from './docker.type.js';
 
 export class DockerService {
+    /** Crea e inspecciona un contenedor Docker. */
     static async createContainer({
         image,
         vncPassword,
@@ -41,6 +42,7 @@ export class DockerService {
         }
     }
 
+    /** Inicia un contenedor Docker si no esta activo. */
     static async startContainer(containerId: string): Promise<ContainerInspectInfo> {
         try {
             const container = dockerClient.getContainer(containerId);
@@ -56,6 +58,7 @@ export class DockerService {
         }
     }
 
+    /** Detiene un contenedor Docker si esta activo. */
     static async stopContainer(containerId: string): Promise<void> {
         try {
             const container = dockerClient.getContainer(containerId);
@@ -70,6 +73,7 @@ export class DockerService {
         }
     }
 
+    /** Reinicia un contenedor Docker si no se esta reiniciando. */
     static async restartContainer(containerId: string): Promise<void> {
         try {
             const container = dockerClient.getContainer(containerId);
@@ -84,6 +88,7 @@ export class DockerService {
         }
     }
 
+    /** Elimina un contenedor Docker. */
     static async removeContainer(containerId: string): Promise<void> {
         try {
             const container = dockerClient.getContainer(containerId);
@@ -93,6 +98,7 @@ export class DockerService {
         }
     }
 
+    /** Consulta las metricas de un contenedor Docker. */
     static async getStats(containerId: string): Promise<ContainerStats> {
         try {
             const container = dockerClient.getContainer(containerId);
@@ -102,6 +108,7 @@ export class DockerService {
         }
     }
 
+    /** Comprueba si una imagen esta disponible en Docker. */
     static async isImageAvailable(image: string): Promise<boolean> {
         try {
             const images = await dockerClient.listImages();
@@ -114,6 +121,7 @@ export class DockerService {
         }
     }
 
+    /** Convierte errores de Docker en errores de dominio. */
     private static toOperationError(error: unknown, fallbackMessage: string) {
         if (DockerService.isMissingContainerError(error)) {
             return new DockerContainerNotFoundError();
@@ -123,6 +131,7 @@ export class DockerService {
         return new DockerOperationError();
     }
 
+    /** Detecta si un error indica que falta un contenedor. */
     private static isMissingContainerError(error: unknown): boolean {
         if (!error || typeof error !== 'object') {
             return false;

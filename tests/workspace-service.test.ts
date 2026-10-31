@@ -54,9 +54,14 @@ describe('WorkspaceService', () => {
         mocks.getWorkspaceById.mockResolvedValue({
             id: 'workspace-id',
             container_id: 'container-id',
+            image: 'ubuntu:24.04',
+            status: 'running',
         });
         mocks.updateWorkspace.mockResolvedValue({ id: 'workspace-id' });
         mocks.deleteWorkspace.mockResolvedValue(true);
+        mocks.startContainer.mockResolvedValue({
+            NetworkSettings: { Ports: { '6901/tcp': [{ HostPort: '40000' }] } },
+        });
     });
 
     it('elimina el contenedor antes de borrar el workspace del usuario', async () => {
@@ -139,6 +144,58 @@ describe('WorkspaceService', () => {
         await expect(WorkspaceService.start('workspace-id', 'user-id')).rejects.toMatchObject({
             statusCode: 409,
             message: 'El contenedor del workspace no está disponible.',
+        });
+    });
+
+    it('reintenta iniciando el contenedor existente de un workspace en error', async () => {
+        mocks.getWorkspaceById.mockResolvedValue({
+            id: 'workspace-id',
+            container_id: 'container-id',
+            status: 'error',
+        });
+
+        await WorkspaceService.retry('workspace-id', 'user-id');
+
+        expect(mocks.startContainer).toHaveBeenCalledWith('container-id');
+        expect(mocks.updateWorkspace).toHaveBeenLastCalledWith('workspace-id', {
+            status: 'running',
+            port: 40000,
+            error_message: null,
+        });
+    });
+
+    it('recrea el contenedor cuando el workspace en error no tiene contenedor', async () => {
+        mocks.getWorkspaceById.mockResolvedValue({
+            id: 'workspace-id',
+            container_id: null,
+            image: 'ubuntu:24.04',
+            status: 'error',
+        });
+        mocks.createContainer.mockResolvedValue({ Id: 'new-container-id' });
+
+        await WorkspaceService.retry('workspace-id', 'user-id');
+
+        expect(mocks.createContainer).toHaveBeenCalledWith(
+            expect.objectContaining({
+                workspaceId: 'workspace-id',
+                image: 'ubuntu:24.04',
+            })
+        );
+        expect(mocks.startContainer).toHaveBeenCalledWith('new-container-id');
+        expect(mocks.updateWorkspace).toHaveBeenLastCalledWith(
+            'workspace-id',
+            expect.objectContaining({
+                status: 'running',
+                container_id: 'new-container-id',
+                error_message: null,
+            })
+        );
+    });
+
+    it('rechaza reintentar un workspace que no está en error', async () => {
+        await expect(WorkspaceService.retry('workspace-id', 'user-id')).rejects.toMatchObject({
+            statusCode: 503,
+            message: 'Solo se puede reintentar un workspace que esté en estado de error.',
         });
     });
 });

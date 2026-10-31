@@ -23,7 +23,7 @@ export type WorkspaceListItem = Pick<
 
 export type WorkspaceDetails = Pick<
     Workspace,
-    'id' | 'name' | 'status' | 'container_id' | 'created_at'
+    'id' | 'name' | 'status' | 'container_id' | 'created_at' | 'error_message'
 > & {
     image_name: string;
     image: string;

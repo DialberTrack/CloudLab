@@ -2,6 +2,7 @@ export class AppError extends Error {
     public readonly statusCode: number;
     public readonly code: string;
 
+    /** Crea un error de aplicación con estado y código HTTP. */
     constructor(message: string, statusCode: number, code?: string, options?: ErrorOptions) {
         super(message, options);
         this.statusCode = statusCode;
@@ -11,6 +12,7 @@ export class AppError extends Error {
         Error.captureStackTrace(this);
     }
 
+    /** Convierte el nombre de una clase de error a un código. */
     private static toCode(errorName: string): string {
         return errorName
             .replace(/Error$/, '')
@@ -21,6 +23,7 @@ export class AppError extends Error {
 
 export class ValidationError extends AppError {
     public issues: unknown;
+    /** Crea un error de validación con sus incidencias. */
     constructor(issues: unknown, message: string = 'Error de validación') {
         super(message, 400, 'VALIDATION_ERROR');
         this.issues = issues;
